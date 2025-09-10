@@ -1,5 +1,22 @@
 # 🎯 Cursor IDE Usage Guide
 
+## ⚠️ Security Notice
+
+**Please use this tool responsibly and ethically. This browser automation tool is intended for:**
+
+- Testing your own applications
+- Educational purposes
+- Development workflows
+- Quality assurance
+
+**Do not use for:**
+
+- Data scraping without permission
+- Accessing confidential information
+- Bypassing security measures
+- Any activities that could harm other users
+- Respect robots.txt
+
 ## 🚀 Quick Start with Cursor
 
 ### 1. **MCP Server is Already Configured**
@@ -10,25 +27,29 @@ Your Cursor IDE is already set up with the MCP Selenium server! You can start us
 
 When you open Cursor, you now have access to these browser automation tools:
 
-| Tool                | Description             | Example Usage                               |
-| ------------------- | ----------------------- | ------------------------------------------- |
-| `open_browser`      | Start a browser session | "Open a browser and go to Google"           |
-| `navigate_to`       | Navigate to a URL       | "Go to https://example.com"                 |
-| `click_element`     | Click on elements       | "Click the login button"                    |
-| `type_text`         | Enter text in fields    | "Type 'admin@demo.com' in the email field"  |
-| `drag_and_drop`     | Move elements           | "Drag the menu button to the drawflow area" |
-| `take_screenshot`   | Capture page state      | "Take a screenshot of the current page"     |
-| `get_page_elements` | Inspect page structure  | "Show me all buttons on this page"          |
-| `execute_script`    | Run JavaScript          | "Execute some JavaScript on this page"      |
-| `wait_for_element`  | Wait for elements       | "Wait for the form to load"                 |
-| `close_browser`     | End browser session     | "Close the browser"                         |
+| Tool                     | Description             | Example Usage                               |
+| ------------------------ | ----------------------- | ------------------------------------------- |
+| `open_browser`           | Start a browser session | "Open a browser and go to Google"           |
+| `navigate_to`            | Navigate to a URL       | "Go to example.com"                         |
+| `click_element`          | Click on elements       | "Click the login button"                    |
+| `type_text`              | Enter text in fields    | "Type 'admin@demo.com' in the email field"  |
+| `drag_and_drop`          | Move elements           | "Drag the menu button to the drawflow area" |
+| `take_screenshot`        | Capture page state      | "Take a screenshot of the current page"     |
+| `get_page_elements`      | Inspect page structure  | "Show me all buttons on this page"          |
+| `execute_script`         | Run JavaScript          | "Execute some JavaScript on this page"      |
+| `wait_for_element`       | Wait for elements       | "Wait for the form to load"                 |
+| `close_browser`          | End browser session     | "Close the browser"                         |
+| `hello_world_demo`       | Hello World demo        | "Run the hello world demo"                  |
+| `google_search`          | Search on Google        | "Search for 'selenium automation'"          |
+| `detect_captcha`         | Detect CAPTCHAs         | "Check if there's a CAPTCHA on this page"   |
+| `wait_for_captcha_solve` | Wait for CAPTCHA solve  | "Wait for me to solve the CAPTCHA"          |
 
 ## 🎯 Common Cursor Prompts
 
 ### **Basic Browser Operations**
 
 ```
-"Open a browser and navigate to https://test.silva.mobi/login"
+"Open a browser and navigate to your test site login page"
 "Take a screenshot of the current page"
 "Close the browser"
 ```
@@ -71,19 +92,28 @@ When you open Cursor, you now have access to these browser automation tools:
 ### **Complete Login Flow**
 
 ```
-"Open a browser and go to https://test.silva.mobi/login, then type 'admin@demo.com' in the email field, type '123' in the password field, click the submit button, and take a screenshot"
+"Open a browser and go to your test site login page, then type 'admin@demo.com' in the email field, type '123' in the password field, click the submit button, and take a screenshot"
 ```
 
 ### **Complex Testing Scenario**
 
 ```
-"Open a browser, go to https://test.silva.mobi/login, login with admin@demo.com and password 123, navigate to company settings, click the first link, click the button, drag the span element to the drawflow div, and take a final screenshot"
+"Open a browser, go to your test site login page, login with admin@demo.com and password 123, navigate to company settings, click the first link, click the button, drag the span element to the drawflow div, and take a final screenshot"
 ```
 
 ### **Page Analysis**
 
 ```
-"Open a browser, go to https://example.com, show me all the form elements, take a screenshot, and close the browser"
+"Open a browser, go to example.com, show me all the form elements, take a screenshot, and close the browser"
+```
+
+### **Plugin Examples**
+
+```
+"Run the hello world demo"
+"Search for 'selenium automation' on Google"
+"Check if there's a CAPTCHA on this page"
+"Wait for me to solve any CAPTCHA that appears"
 ```
 
 ## ⚡ Performance Tips for Cursor
@@ -135,7 +165,7 @@ When you open Cursor, you now have access to these browser automation tools:
 
 ### **Scenario 2: Form Testing**
 
-**You**: "Test the login form on https://test.silva.mobi/login with admin@demo.com and password 123"
+**You**: "Test the login form on your test site with admin@demo.com and password 123"
 **Cursor**: Automates the entire login process and provides feedback
 
 ### **Scenario 3: Complex UI Testing**

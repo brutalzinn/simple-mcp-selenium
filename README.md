@@ -100,6 +100,29 @@ This MCP server provides:
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
+### Project Structure
+
+```
+mcp-selenium/
+├── src/                    # Source code
+│   ├── core/              # Browser automation core
+│   ├── types/             # TypeScript type definitions
+│   ├── simple-mcp-server.ts # Main MCP server
+│   └── plugin-manager.ts  # Plugin system
+├── plugins/               # Custom plugins
+│   ├── example-plugin.js  # Hello World demo
+│   └── captcha-plugin.js  # CAPTCHA handling
+├── scripts/               # Utility scripts
+│   ├── install-simple.sh  # Docker installation
+│   ├── start.sh          # Start server
+│   ├── stop.sh           # Stop server
+│   └── download-chromedriver.js # Chrome driver setup
+├── docs/                  # Documentation
+├── screenshots/           # Screenshots (accessible to LLM)
+├── docker-compose.yml     # Docker configuration
+└── Dockerfile            # Container definition
+```
+
 ### Core Components
 
 - **MCP Server** - Handles communication with AI assistants
@@ -107,21 +130,175 @@ This MCP server provides:
 - **Tool Definitions** - Exposes browser capabilities as MCP tools
 - **Plugin System** - Allows custom functionality extensions
 
+## ⚠️ Security Disclaimer
+
+**This project is not intended to be used for data capture, scraping confidential information, or any other type of thing that could put the security of other users at risk.**
+
+Please use this tool responsibly and in accordance with:
+
+- Website terms of service
+- Local and international laws
+- Ethical guidelines for automation
+- Respect for user privacy and data protection
+
+## 🚀 Getting Started
+
+### Step 1: Clone the Repository
+
+```bash
+git clone <repository-url>
+cd mcp-selenium
+```
+
+### Step 2: Install Dependencies
+
+**Option A: Docker (Recommended)**
+
+```bash
+# Simple installation with Docker
+./scripts/install-simple.sh
+```
+
+**Option B: Manual Installation**
+
+```bash
+# Install Node.js dependencies
+npm install
+
+# Build the project
+npm run build
+```
+
+### Step 3: Start the MCP Server
+
+**With Docker:**
+
+```bash
+# Start the server
+./scripts/start.sh
+
+# Check if it's running
+docker compose ps
+```
+
+**Without Docker:**
+
+```bash
+# Start the server directly
+npm start
+```
+
+### Step 4: Verify Installation
+
+```bash
+# Test browser functionality
+node scripts/test-docker-browser.js
+```
+
+### Step 5: Configure Cursor IDE
+
+The MCP server is already configured for Cursor IDE! You can start using it immediately with commands like:
+
+- "Open a browser and go to Google"
+- "Run the hello world demo"
+- "Take a screenshot of the current page"
+
+### Step 6: Troubleshooting
+
+**Common Issues:**
+
+**Docker not starting:**
+
+```bash
+# Check Docker status
+docker --version
+docker compose --version
+
+# Restart Docker service
+sudo systemctl restart docker
+```
+
+**Browser not working:**
+
+```bash
+# Test browser functionality
+node scripts/test-docker-browser.js
+
+# Check container logs
+docker compose logs -f
+```
+
+**MCP server not responding:**
+
+```bash
+# Restart the server
+./scripts/stop.sh
+./scripts/start.sh
+
+# Check if port is available
+netstat -tlnp | grep :3000
+```
+
+**Need help?**
+
+- Check the [Installation Guide](docs/installation-guide.md)
+- Review the [Cursor Usage Guide](docs/cursor-usage-guide.md)
+- Test with the [Hello World Demo](plugins/example-plugin.js)
+
+### Step 7: Quick Reference
+
+**Essential Commands:**
+
+```bash
+# Start server
+./scripts/start.sh
+
+# Stop server
+./scripts/stop.sh
+
+# View logs
+docker compose logs -f
+
+# Test browser
+node scripts/test-docker-browser.js
+
+# Restart everything
+./scripts/stop.sh && ./scripts/start.sh
+```
+
+**First Test:**
+
+```bash
+# Run the hello world demo
+node -e "
+const { spawn } = require('child_process');
+const mcp = spawn('node', ['dist/simple-mcp-server.js']);
+mcp.stdin.write(JSON.stringify({
+  jsonrpc: '2.0',
+  id: 1,
+  method: 'tools/call',
+  params: {
+    name: 'hello_world_demo',
+    arguments: {}
+  }
+}) + '\n');
+"
+```
+
 ## 🚀 Quick Start
 
-### Installation
+### Installation (Docker - Recommended)
 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd mcp-selenium
 
-# Install dependencies
-npm install
-
-# Build the project
-npm run build
+# Install and start with Docker (includes browser support)
+./scripts/install-simple.sh
 ```
+
+**That's it!** The MCP server will start automatically with full browser support.
 
 ### Cursor IDE Integration ✅ **READY TO USE!**
 
@@ -149,10 +326,41 @@ Cursor: Uses MCP tools to:
 ## 📚 Documentation
 
 - **[Cursor Usage Guide](docs/cursor-usage-guide.md)** - Complete guide for using with Cursor IDE
-- **[Cursor Integration Guide](docs/cursor-integration.md)** - Technical setup instructions
-- **[Testing with Cursor](docs/testing-with-cursor.md)** - How to use with Cursor IDE
+- **[Plugin Development](docs/plugin-development.md)** - How to create custom plugins
+- **[Installation Guide](docs/installation-guide.md)** - Docker setup instructions
+- **[Scripts Documentation](scripts/README.md)** - Available utility scripts
 - **[Drag & Drop Examples](docs/drag-drop-examples.md)** - Advanced interaction patterns
 - **[Performance Optimization](docs/performance-optimization.md)** - Speed optimization guide
+
+## 🔒 Security & Ethics
+
+### Responsible Usage Guidelines
+
+This browser automation tool should be used responsibly and ethically:
+
+#### ✅ **Appropriate Uses:**
+
+- **Testing your own applications** - Automated testing of your own websites and applications
+- **Educational purposes** - Learning browser automation and testing techniques
+- **Development workflows** - Automating repetitive development tasks
+- **Quality assurance** - Testing functionality and user experience
+- **Accessibility testing** - Ensuring applications work for all users
+
+#### ❌ **Inappropriate Uses:**
+
+- **Data scraping** - Extracting data from websites without permission
+- **Confidential information** - Accessing or capturing sensitive user data
+- **Bypassing security measures** - Circumventing authentication or protection systems
+- **Spam or abuse** - Automated actions that could harm other users
+- **Terms of service violations** - Actions that violate website policies
+
+#### 🛡️ **Security Considerations:**
+
+- Always respect website terms of service
+- Obtain proper authorization before testing
+- Use appropriate rate limiting and delays
+- Protect any credentials or sensitive data
+- Follow data protection regulations (GDPR, CCPA, etc.)
 
 ## 🎯 Use Cases
 
@@ -206,7 +414,7 @@ Cursor: Uses MCP tools to:
 - **No Code Required** - Use natural language to control browsers
 - **AI-Powered** - Leverage AI intelligence for smart interactions
 - **Extensible** - Plugin system for custom functionality
-- **Cross-Platform** - Works on Windows, macOS, and Linux
+- **Cross-Platform** - Works on Windows and Linux ( no tested at mac osx yet but i think works. Just make sure the xcode build tools is ready. )
 - **Multiple Browsers** - Support for Chrome, Firefox, and more
 - **Visual Feedback** - Screenshots and visual verification
 - **Error Handling** - Robust error detection and reporting
@@ -234,7 +442,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgments
 
 - **Selenium WebDriver** - For browser automation capabilities
-- **Model Context Protocol** - For AI assistant integration
+- **Model Context Protocol** - For Anthropic
 - **TypeScript** - For type-safe development
 - **Node.js** - For runtime environment
 

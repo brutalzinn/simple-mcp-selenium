@@ -139,3 +139,4 @@ temp/
 *.njsproj
 *.sln
 *.sw?
+test-*

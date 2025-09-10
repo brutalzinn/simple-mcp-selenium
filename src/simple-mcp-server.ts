@@ -4,10 +4,12 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { BrowserAutomationCore } from './core/browser-automation-core.js';
+import { PluginManager } from './plugin-manager.js';
 
 class SimpleMCPServer {
   private server: Server;
   private browserCore: BrowserAutomationCore;
+  private pluginManager: PluginManager;
 
   constructor() {
     this.server = new Server(
@@ -19,13 +21,13 @@ class SimpleMCPServer {
     );
 
     this.browserCore = new BrowserAutomationCore();
+    this.pluginManager = new PluginManager(this.browserCore);
     this.setupToolHandlers();
   }
 
   private setupToolHandlers() {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      return {
-        tools: [
+      const coreTools = [
           {
             name: 'open_browser',
             description: 'Open a new browser instance',
@@ -412,9 +414,14 @@ class SimpleMCPServer {
               properties: {},
             },
           },
-        ],
-      };
-    });
+        ];
+
+        const pluginTools = this.pluginManager.getAllTools();
+
+        return {
+          tools: [...coreTools, ...pluginTools],
+        };
+      });
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
@@ -422,6 +429,19 @@ class SimpleMCPServer {
       try {
         let result;
         const typedArgs = args as any;
+
+        try {
+          result = await this.pluginManager.executeTool(name, typedArgs);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+              },
+            ],
+          };
+        } catch (pluginError) {
+        }
 
         switch (name) {
           case 'open_browser':
@@ -556,6 +576,8 @@ class SimpleMCPServer {
   }
 
   async run() {
+    await this.pluginManager.loadAllPlugins();
+    
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('Selenium MCP Server running on stdio');

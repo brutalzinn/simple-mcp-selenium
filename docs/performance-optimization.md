@@ -105,7 +105,7 @@ You can customize timeouts for specific operations:
 {
   "tool": "navigate_to",
   "arguments": {
-    "url": "https://example.com"
+    "url": "example.com"
     // Uses default 3 seconds
   }
 }
@@ -132,7 +132,7 @@ For multiple related actions, use `execute_action_sequence`:
   "tool": "execute_action_sequence",
   "arguments": {
     "actions": [
-      { "action": "navigate_to", "value": "https://example.com" },
+      { "action": "navigate_to", "value": "example.com" },
       { "action": "type", "selector": "input", "text": "value" },
       { "action": "click", "selector": "button" }
     ]
