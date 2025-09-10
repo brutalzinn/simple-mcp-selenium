@@ -15,11 +15,6 @@ class SimpleMCPServer {
         name: 'selenium-mcp-server',
         version: '1.0.0',
         description: 'MCP Server for browser automation using Selenium WebDriver',
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
       }
     );
 
@@ -256,6 +251,160 @@ class SimpleMCPServer {
             },
           },
           {
+            name: 'drag_and_drop',
+            description: 'Drag an element and drop it onto another element',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sourceSelector: {
+                  type: 'string',
+                  description: 'CSS selector or XPath for the source element to drag'
+                },
+                targetSelector: {
+                  type: 'string',
+                  description: 'CSS selector or XPath for the target element to drop onto'
+                },
+                sourceBy: {
+                  type: 'string',
+                  enum: ['css', 'xpath', 'id', 'name', 'className', 'tagName'],
+                  description: 'Type of selector for source element',
+                  default: 'css'
+                },
+                targetBy: {
+                  type: 'string',
+                  enum: ['css', 'xpath', 'id', 'name', 'className', 'tagName'],
+                  description: 'Type of selector for target element',
+                  default: 'css'
+                },
+                timeout: {
+                  type: 'number',
+                  description: 'Timeout in milliseconds',
+                  default: 10000
+                }
+              },
+              required: ['sourceSelector', 'targetSelector']
+            }
+          },
+          {
+            name: 'hover_element',
+            description: 'Hover over an element',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                selector: {
+                  type: 'string',
+                  description: 'CSS selector or XPath to find the element'
+                },
+                by: {
+                  type: 'string',
+                  enum: ['css', 'xpath', 'id', 'name', 'className', 'tagName'],
+                  description: 'Type of selector',
+                  default: 'css'
+                },
+                timeout: {
+                  type: 'number',
+                  description: 'Timeout in milliseconds',
+                  default: 10000
+                }
+              },
+              required: ['selector']
+            }
+          },
+          {
+            name: 'double_click_element',
+            description: 'Double-click on an element',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                selector: {
+                  type: 'string',
+                  description: 'CSS selector or XPath to find the element'
+                },
+                by: {
+                  type: 'string',
+                  enum: ['css', 'xpath', 'id', 'name', 'className', 'tagName'],
+                  description: 'Type of selector',
+                  default: 'css'
+                },
+                timeout: {
+                  type: 'number',
+                  description: 'Timeout in milliseconds',
+                  default: 10000
+                }
+              },
+              required: ['selector']
+            }
+          },
+          {
+            name: 'right_click_element',
+            description: 'Right-click on an element',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                selector: {
+                  type: 'string',
+                  description: 'CSS selector or XPath to find the element'
+                },
+                by: {
+                  type: 'string',
+                  enum: ['css', 'xpath', 'id', 'name', 'className', 'tagName'],
+                  description: 'Type of selector',
+                  default: 'css'
+                },
+                timeout: {
+                  type: 'number',
+                  description: 'Timeout in milliseconds',
+                  default: 10000
+                }
+              },
+              required: ['selector']
+            }
+          },
+          {
+            name: 'get_page_elements',
+            description: 'Get all elements on the current page',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                selector: {
+                  type: 'string',
+                  description: 'CSS selector to filter elements (optional)',
+                  default: '*'
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Maximum number of elements to return',
+                  default: 100
+                }
+              }
+            }
+          },
+          {
+            name: 'wait_for_element',
+            description: 'Wait for an element to appear and be visible',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                selector: {
+                  type: 'string',
+                  description: 'CSS selector or XPath to find the element'
+                },
+                by: {
+                  type: 'string',
+                  enum: ['css', 'xpath', 'id', 'name', 'className', 'tagName'],
+                  description: 'Type of selector',
+                  default: 'css'
+                },
+                timeout: {
+                  type: 'number',
+                  description: 'Timeout in milliseconds',
+                  default: 10000
+                }
+              },
+              required: ['selector']
+            }
+          },
+          {
             name: 'close_browser',
             description: 'Close the current browser instance',
             inputSchema: {
@@ -272,35 +421,36 @@ class SimpleMCPServer {
 
       try {
         let result;
+        const typedArgs = args as any;
 
         switch (name) {
           case 'open_browser':
-            result = await this.browserCore.openBrowser(args);
+            result = await this.browserCore.openBrowser(typedArgs);
             break;
           
           case 'navigate_to':
-            result = await this.browserCore.navigateTo(args.url);
+            result = await this.browserCore.navigateTo(typedArgs.url);
             break;
           
           case 'click_element':
             result = await this.browserCore.clickElement({
-              selector: args.selector,
-              by: args.by || 'css',
-              timeout: args.timeout || 10000
+              selector: typedArgs.selector,
+              by: typedArgs.by || 'css',
+              timeout: typedArgs.timeout || 10000
             });
             break;
           
           case 'type_text':
             result = await this.browserCore.typeText({
-              selector: args.selector,
-              text: args.text,
-              by: args.by || 'css',
-              timeout: args.timeout || 10000
+              selector: typedArgs.selector,
+              text: typedArgs.text,
+              by: typedArgs.by || 'css',
+              timeout: typedArgs.timeout || 10000
             });
             break;
           
           case 'take_screenshot':
-            result = await this.browserCore.takeScreenshot(args.filename, args.fullPage);
+            result = await this.browserCore.takeScreenshot(typedArgs.filename, typedArgs.fullPage);
             break;
           
           case 'get_page_title':
@@ -312,15 +462,66 @@ class SimpleMCPServer {
             break;
           
           case 'execute_script':
-            result = await this.browserCore.executeScript(args.script, args.args || []);
+            result = await this.browserCore.executeScript(typedArgs.script, typedArgs.args || []);
             break;
           
           case 'execute_action_sequence':
             result = await this.browserCore.executeActionSequence(
-              args.actions,
-              args.continueOnError || false,
-              args.stopOnError !== false
+              typedArgs.actions,
+              typedArgs.continueOnError || false,
+              typedArgs.stopOnError !== false
             );
+            break;
+          
+          case 'drag_and_drop':
+            result = await this.browserCore.dragAndDrop(
+              {
+                selector: typedArgs.sourceSelector,
+                by: typedArgs.sourceBy || 'css',
+                timeout: typedArgs.timeout || 10000
+              },
+              {
+                selector: typedArgs.targetSelector,
+                by: typedArgs.targetBy || 'css',
+                timeout: typedArgs.timeout || 10000
+              }
+            );
+            break;
+          
+          case 'hover_element':
+            result = await this.browserCore.hoverElement({
+              selector: typedArgs.selector,
+              by: typedArgs.by || 'css',
+              timeout: typedArgs.timeout || 10000
+            });
+            break;
+          
+          case 'double_click_element':
+            result = await this.browserCore.doubleClickElement({
+              selector: typedArgs.selector,
+              by: typedArgs.by || 'css',
+              timeout: typedArgs.timeout || 10000
+            });
+            break;
+          
+          case 'right_click_element':
+            result = await this.browserCore.rightClickElement({
+              selector: typedArgs.selector,
+              by: typedArgs.by || 'css',
+              timeout: typedArgs.timeout || 10000
+            });
+            break;
+          
+          case 'get_page_elements':
+            result = await this.browserCore.getPageElements(typedArgs.selector || '*', typedArgs.limit || 100);
+            break;
+          
+          case 'wait_for_element':
+            result = await this.browserCore.waitForElement({
+              selector: typedArgs.selector,
+              by: typedArgs.by || 'css',
+              timeout: typedArgs.timeout || 10000
+            });
             break;
           
           case 'close_browser':

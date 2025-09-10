@@ -532,6 +532,151 @@ export class BrowserAutomationCore {
     }
   }
 
+  async hoverElement(options: ElementOptions): Promise<ActionResult> {
+    if (!this.driver) {
+      return { success: false, message: 'Browser not opened. Please call openBrowser first.' };
+    }
+
+    try {
+      const byMethod = this.getByMethod(options.by || 'css');
+      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 10000);
+      await this.driver.wait(until.elementIsVisible(element), options.timeout || 10000);
+
+      const actions = this.driver.actions();
+      await actions.move({ origin: element }).perform();
+
+      return {
+        success: true,
+        message: `Hovered over element: ${options.selector}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to hover over element: ${options.selector} (${options.by || 'css'}): ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  async doubleClickElement(options: ElementOptions): Promise<ActionResult> {
+    if (!this.driver) {
+      return { success: false, message: 'Browser not opened. Please call openBrowser first.' };
+    }
+
+    try {
+      const byMethod = this.getByMethod(options.by || 'css');
+      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 10000);
+      await this.driver.wait(until.elementIsVisible(element), options.timeout || 10000);
+
+      const actions = this.driver.actions();
+      await actions.doubleClick(element).perform();
+
+      return {
+        success: true,
+        message: `Double-clicked element: ${options.selector}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to double-click element: ${options.selector} (${options.by || 'css'}): ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  async rightClickElement(options: ElementOptions): Promise<ActionResult> {
+    if (!this.driver) {
+      return { success: false, message: 'Browser not opened. Please call openBrowser first.' };
+    }
+
+    try {
+      const byMethod = this.getByMethod(options.by || 'css');
+      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 10000);
+      await this.driver.wait(until.elementIsVisible(element), options.timeout || 10000);
+
+      const actions = this.driver.actions();
+      await actions.contextClick(element).perform();
+
+      return {
+        success: true,
+        message: `Right-clicked element: ${options.selector}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to right-click element: ${options.selector} (${options.by || 'css'}): ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  async getPageElements(selector: string = '*', limit: number = 100): Promise<ActionResult> {
+    if (!this.driver) {
+      return { success: false, message: 'Browser not opened. Please call openBrowser first.' };
+    }
+
+    try {
+      const elements = await this.driver.findElements(By.css(selector));
+      const limitedElements = elements.slice(0, limit);
+      
+      const elementData = await Promise.all(limitedElements.map(async (element, index) => {
+        try {
+          const tagName = await element.getTagName();
+          const text = await element.getText();
+          const isDisplayed = await element.isDisplayed();
+          const isEnabled = await element.isEnabled();
+          
+          return {
+            index,
+            tagName,
+            text: text.substring(0, 100), // Limit text length
+            displayed: isDisplayed,
+            enabled: isEnabled
+          };
+        } catch (error) {
+          return {
+            index,
+            tagName: 'unknown',
+            text: 'Error reading element',
+            displayed: false,
+            enabled: false
+          };
+        }
+      }));
+
+      return {
+        success: true,
+        message: `Found ${elementData.length} elements matching selector: ${selector}`,
+        data: elementData
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to get page elements: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  async waitForElement(options: ElementOptions): Promise<ActionResult> {
+    if (!this.driver) {
+      return { success: false, message: 'Browser not opened. Please call openBrowser first.' };
+    }
+
+    try {
+      const byMethod = this.getByMethod(options.by || 'css');
+      await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 10000);
+      const element = this.driver.findElement(byMethod(options.selector));
+      await this.driver.wait(until.elementIsVisible(element), options.timeout || 10000);
+
+      return {
+        success: true,
+        message: `Element appeared and is visible: ${options.selector}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Element did not appear within timeout: ${options.selector} (${options.by || 'css'}): ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
   getDriver(): WebDriver | null {
     return this.driver;
   }

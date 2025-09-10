@@ -41,6 +41,7 @@ mcp-selenium --version
 Add the following configuration to your Cursor settings:
 
 #### Option A: Global Installation
+
 ```json
 {
   "mcp.servers": {
@@ -54,12 +55,15 @@ Add the following configuration to your Cursor settings:
 ```
 
 #### Option B: Local Installation
+
 ```json
 {
   "mcp.servers": {
     "selenium-browser": {
       "command": "node",
-      "args": ["/path/to/your/project/node_modules/mcp-selenium-server/dist/index.js"],
+      "args": [
+        "/path/to/your/project/node_modules/mcp-selenium-server/dist/index.js"
+      ],
       "env": {}
     }
   }
@@ -67,6 +71,7 @@ Add the following configuration to your Cursor settings:
 ```
 
 #### Option C: Development Mode
+
 ```json
 {
   "mcp.servers": {
@@ -100,6 +105,7 @@ Once configured, you can access browser automation tools through Cursor's MCP in
 The following tools are available for browser automation:
 
 #### Basic Browser Operations
+
 - `open_browser` - Open a new browser instance
 - `navigate_to` - Navigate to a URL
 - `close_browser` - Close the browser
@@ -107,18 +113,21 @@ The following tools are available for browser automation:
 - `get_page_url` - Get current page URL
 
 #### Element Interactions
+
 - `click_element` - Click on elements
 - `type_text` - Type text into input fields
 - `hover_element` - Hover over elements
 - `scroll_to_element` - Scroll to specific elements
 
 #### Form Operations
+
 - `fill_form` - Fill forms with data
 - `select_option` - Select dropdown options
 - `check_checkbox` - Check/uncheck checkboxes
 - `upload_file` - Upload files
 
 #### Advanced Operations
+
 - `drag_and_drop` - Drag and drop elements
 - `execute_script` - Execute JavaScript
 - `take_screenshot` - Take screenshots
@@ -127,6 +136,7 @@ The following tools are available for browser automation:
 ### 3. Example Usage
 
 #### Open Browser and Navigate
+
 ```json
 {
   "tool": "open_browser",
@@ -143,12 +153,13 @@ The following tools are available for browser automation:
 {
   "tool": "navigate_to",
   "parameters": {
-    "url": "https://example.com"
+    "url": "your-target-url"
   }
 }
 ```
 
 #### Execute Action Sequence
+
 ```json
 {
   "tool": "execute_action_sequence",
@@ -156,7 +167,7 @@ The following tools are available for browser automation:
     "actions": [
       {
         "action": "navigate_to",
-        "value": "https://example.com",
+        "value": "your-target-url",
         "description": "Navigate to website"
       },
       {
@@ -190,16 +201,19 @@ The following tools are available for browser automation:
 ## Browser Types
 
 ### Chrome (Default)
+
 - **Type**: `chrome`
 - **Features**: Full feature support, console logging, screenshots
 - **Best for**: General web automation, testing
 
 ### DuckDuckGo
+
 - **Type**: `duckduckgo`
 - **Features**: Privacy-focused, Chrome engine
 - **Best for**: Search automation, privacy-sensitive tasks
 
 ### Firefox
+
 - **Type**: `firefox`
 - **Features**: Cross-browser testing
 - **Best for**: Cross-browser compatibility testing
@@ -207,6 +221,7 @@ The following tools are available for browser automation:
 ## Headless Mode
 
 ### Enable Headless Mode
+
 ```json
 {
   "tool": "open_browser",
@@ -218,6 +233,7 @@ The following tools are available for browser automation:
 ```
 
 ### Headless Benefits
+
 - Faster execution
 - Lower resource usage
 - Server environments
@@ -226,6 +242,7 @@ The following tools are available for browser automation:
 ## Advanced Configuration
 
 ### Custom User Agent
+
 ```json
 {
   "tool": "open_browser",
@@ -236,11 +253,12 @@ The following tools are available for browser automation:
 ```
 
 ### Proxy Support
+
 ```json
 {
   "tool": "open_browser",
   "parameters": {
-    "proxy": "proxy.example.com:8080"
+    "proxy": "your-proxy-server:port"
   }
 }
 ```
@@ -250,6 +268,7 @@ The following tools are available for browser automation:
 ### Common Issues
 
 #### 1. ChromeDriver Not Found
+
 ```bash
 # Reinstall ChromeDriver
 npm install -g chromedriver
@@ -258,17 +277,20 @@ npx chromedriver --version
 ```
 
 #### 2. Permission Denied
+
 ```bash
 # Make sure the script is executable
 chmod +x /path/to/mcp-selenium
 ```
 
 #### 3. Browser Won't Open
+
 - Check if Chrome/Firefox is installed
 - Verify ChromeDriver version compatibility
 - Try running in headless mode
 
 #### 4. MCP Server Not Loading
+
 - Check Cursor IDE logs
 - Verify the configuration JSON syntax
 - Ensure the server path is correct
@@ -295,20 +317,25 @@ Enable debug logging by setting environment variables:
 ## Best Practices
 
 ### 1. Error Handling
+
 Always use `continueOnError: false` for critical workflows to stop on first error.
 
 ### 2. Timeouts
+
 Set appropriate timeouts for different actions:
+
 - Page loads: 30 seconds
 - Element interactions: 10 seconds
 - Network requests: 15 seconds
 
 ### 3. Resource Management
+
 - Always close browsers when done
 - Use headless mode for automated tasks
 - Clean up temporary files
 
 ### 4. Security
+
 - Be careful with credentials in action sequences
 - Use environment variables for sensitive data
 - Validate user inputs
@@ -316,6 +343,7 @@ Set appropriate timeouts for different actions:
 ## Examples
 
 ### Web Scraping
+
 ```json
 {
   "tool": "execute_action_sequence",
@@ -323,7 +351,7 @@ Set appropriate timeouts for different actions:
     "actions": [
       {
         "action": "navigate_to",
-        "value": "https://news.ycombinator.com"
+        "value": "your-target-url"
       },
       {
         "action": "get_page_elements",
@@ -339,6 +367,7 @@ Set appropriate timeouts for different actions:
 ```
 
 ### Form Testing
+
 ```json
 {
   "tool": "execute_action_sequence",
@@ -346,13 +375,13 @@ Set appropriate timeouts for different actions:
     "actions": [
       {
         "action": "navigate_to",
-        "value": "https://example.com/contact"
+        "value": "your-target-url/contact"
       },
       {
         "action": "fill_form",
         "formData": {
           "name": "John Doe",
-          "email": "john@example.com",
+          "email": "user@example.com",
           "message": "Test message"
         }
       },
@@ -371,6 +400,7 @@ Set appropriate timeouts for different actions:
 ```
 
 ### E2E Testing
+
 ```json
 {
   "tool": "execute_action_sequence",
@@ -378,7 +408,7 @@ Set appropriate timeouts for different actions:
     "actions": [
       {
         "action": "navigate_to",
-        "value": "https://myapp.com"
+        "value": "your-app-url"
       },
       {
         "action": "click",
@@ -387,7 +417,7 @@ Set appropriate timeouts for different actions:
       {
         "action": "type",
         "selector": "#email",
-        "value": "test@example.com"
+        "value": "user@example.com"
       },
       {
         "action": "type",
@@ -414,6 +444,7 @@ Set appropriate timeouts for different actions:
 ## Support
 
 For issues and questions:
-- Check the [GitHub repository](https://github.com/your-repo/mcp-selenium-server)
+
+- Check the project repository for updates
 - Review the [main documentation](../README.md)
 - Open an issue for bugs or feature requests

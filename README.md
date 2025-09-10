@@ -85,7 +85,7 @@ npm install -g .
 
 3. **Use in Chat**
    ```
-   Open a browser and navigate to https://example.com
+   Open a browser and navigate to your target URL
    Fill the login form with test credentials
    Take a screenshot of the results
    ```
@@ -159,15 +159,49 @@ npm run test:integration
 ```
 mcp-selenium/
 ├── src/                    # Source code
-│   ├── core/              # Core browser automation
-│   ├── tools/             # MCP tool implementations
-│   └── types/             # TypeScript type definitions
+│   ├── simple-mcp-server.ts    # Main MCP server entry point
+│   ├── browser-manager.ts      # Core browser automation logic
+│   ├── core/                   # Core browser automation
+│   │   └── browser-automation-core.ts
+│   ├── plugin-manager.ts       # Plugin system management
+│   └── types/                  # TypeScript type definitions
+│       └── plugin.ts
+├── docs/                   # Documentation
+│   ├── CURSOR_MCP_GUIDE.md     # Complete Cursor integration guide
+│   ├── cursor-integration.md   # Cursor IDE integration guide
+│   ├── laravel-chat-testing.md # Laravel app testing guide
+│   └── testing-with-cursor.md  # Testing guide for Cursor
+├── scripts/               # Utility scripts
+│   ├── test-cursor-integration.js
+│   ├── test-mcp-connection.js
+│   ├── test-mcp-cursor.js
+│   └── verify-mcp-setup.js
+├── plugins/               # Plugin system
+│   └── captcha-handler.js # Example CAPTCHA handling plugin
 ├── dist/                  # Compiled JavaScript
 ├── test/                  # Test files
-├── docs/                  # Documentation
-├── plugins/               # Plugin system
 └── screenshots/           # Generated screenshots
 ```
+
+## 📚 Documentation
+
+Comprehensive documentation is available in the `docs/` folder:
+
+- **[CURSOR_MCP_GUIDE.md](docs/CURSOR_MCP_GUIDE.md)** - Complete guide for using the MCP server with Cursor IDE
+- **[cursor-integration.md](docs/cursor-integration.md)** - Detailed Cursor IDE integration instructions
+- **[laravel-chat-testing.md](docs/laravel-chat-testing.md)** - Specific testing guide for Laravel chat applications
+- **[testing-with-cursor.md](docs/testing-with-cursor.md)** - General testing guide for Cursor IDE
+
+## 🛠️ Utility Scripts
+
+Utility scripts are available in the `scripts/` folder:
+
+- **`verify-mcp-setup.js`** - Comprehensive verification of MCP server setup
+- **`test-cursor-integration.js`** - Test Cursor IDE integration
+- **`test-mcp-connection.js`** - Test MCP server connection
+- **`test-mcp-cursor.js`** - Basic MCP server functionality test
+
+Run any script with: `node scripts/script-name.js`
 
 ## 🔌 Plugin System
 
@@ -245,9 +279,9 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## 🙏 Acknowledgments
 
-- [Selenium WebDriver](https://selenium.dev/) for browser automation
-- [Model Context Protocol](https://modelcontextprotocol.io/) for AI integration
-- [Cursor IDE](https://cursor.sh/) for the development environment
+- Selenium WebDriver for browser automation
+- Model Context Protocol for AI integration
+- Cursor IDE for the development environment
 
 ---
 

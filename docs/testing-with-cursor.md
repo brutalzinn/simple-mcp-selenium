@@ -78,7 +78,7 @@ cp cursor-mcp-config.json ~/.cursor/settings.json
    {
      "tool": "navigate_to",
      "parameters": {
-       "url": "https://www.google.com.br"
+       "url": "your-target-url"
      }
    }
    ```
@@ -136,8 +136,8 @@ Execute all steps in one command:
     "actions": [
       {
         "action": "navigate_to",
-        "value": "https://www.google.com.br",
-        "description": "Navigate to Google Brazil"
+        "value": "your-target-url",
+        "description": "Navigate to target website"
       },
       {
         "action": "wait_for_element",
@@ -272,7 +272,7 @@ Enable debug logging:
 When testing Google Brazil search, you should see:
 
 1. ✅ Browser opens in Chrome
-2. ✅ Navigates to https://www.google.com.br
+2. ✅ Navigates to the target website
 3. ✅ Types "hello world" in search box
 4. ✅ Clicks search button or presses Enter
 5. ✅ Shows search results page
