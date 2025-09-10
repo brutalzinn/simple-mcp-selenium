@@ -148,7 +148,7 @@ Please use this tool responsibly and in accordance with:
 ### Step 1: Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/brutalzinn/simple-mcp-selenium
 cd mcp-selenium
 ```
 
@@ -293,7 +293,7 @@ mcp.stdin.write(JSON.stringify({
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/brutalzinn/simple-mcp-selenium
 cd mcp-selenium
 
 # Install and start with Docker (includes browser support)
