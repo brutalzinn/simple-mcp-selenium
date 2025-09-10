@@ -1,5 +1,7 @@
 # 🤖 MCP Selenium Browser Automation Server
 
+### Disclaimer: This project build using Cursor and doesnt have a sufficient test coverage. The quality of code is very poor. Soo, keep in mind i can delay to fix somethings. Create a PR if found a problem.
+
 > **A powerful Model Context Protocol (MCP) server that enables AI assistants to control web browsers through Selenium WebDriver, making automated testing and web interaction seamless and intelligent.**
 
 ## 🎯 What This Project Does
