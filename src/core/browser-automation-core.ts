@@ -202,8 +202,8 @@ export class BrowserAutomationCore {
 
     try {
       const byMethod = this.getByMethod(options.by || 'css');
-      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 10000);
-      await this.driver.wait(until.elementIsVisible(element), options.timeout || 10000);
+      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 3000);
+      await this.driver.wait(until.elementIsVisible(element), options.timeout || 3000);
       await element.click();
 
       return {
@@ -229,8 +229,8 @@ export class BrowserAutomationCore {
 
     try {
       const byMethod = this.getByMethod(options.by || 'css');
-      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 10000);
-      await this.driver.wait(until.elementIsVisible(element), options.timeout || 10000);
+      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 3000);
+      await this.driver.wait(until.elementIsVisible(element), options.timeout || 3000);
       await element.clear();
       await element.sendKeys(options.text);
 
@@ -357,11 +357,11 @@ export class BrowserAutomationCore {
       const sourceByMethod = this.getByMethod(sourceOptions.by || 'css');
       const targetByMethod = this.getByMethod(targetOptions.by || 'css');
       
-      const sourceElement = await this.driver.wait(until.elementLocated(sourceByMethod(sourceOptions.selector)), sourceOptions.timeout || 10000);
-      const targetElement = await this.driver.wait(until.elementLocated(targetByMethod(targetOptions.selector)), targetOptions.timeout || 10000);
-      
-      await this.driver.wait(until.elementIsVisible(sourceElement), sourceOptions.timeout || 10000);
-      await this.driver.wait(until.elementIsVisible(targetElement), targetOptions.timeout || 10000);
+      const sourceElement = await this.driver.wait(until.elementLocated(sourceByMethod(sourceOptions.selector)), sourceOptions.timeout || 3000);
+      const targetElement = await this.driver.wait(until.elementLocated(targetByMethod(targetOptions.selector)), targetOptions.timeout || 3000);
+
+      await this.driver.wait(until.elementIsVisible(sourceElement), sourceOptions.timeout || 3000);
+      await this.driver.wait(until.elementIsVisible(targetElement), targetOptions.timeout || 3000);
 
       const actions = this.driver.actions();
       await actions.dragAndDrop(sourceElement, targetElement).perform();
@@ -539,8 +539,8 @@ export class BrowserAutomationCore {
 
     try {
       const byMethod = this.getByMethod(options.by || 'css');
-      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 10000);
-      await this.driver.wait(until.elementIsVisible(element), options.timeout || 10000);
+      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 3000);
+      await this.driver.wait(until.elementIsVisible(element), options.timeout || 3000);
 
       const actions = this.driver.actions();
       await actions.move({ origin: element }).perform();
@@ -564,8 +564,8 @@ export class BrowserAutomationCore {
 
     try {
       const byMethod = this.getByMethod(options.by || 'css');
-      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 10000);
-      await this.driver.wait(until.elementIsVisible(element), options.timeout || 10000);
+      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 3000);
+      await this.driver.wait(until.elementIsVisible(element), options.timeout || 3000);
 
       const actions = this.driver.actions();
       await actions.doubleClick(element).perform();
@@ -589,8 +589,8 @@ export class BrowserAutomationCore {
 
     try {
       const byMethod = this.getByMethod(options.by || 'css');
-      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 10000);
-      await this.driver.wait(until.elementIsVisible(element), options.timeout || 10000);
+      const element = await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 3000);
+      await this.driver.wait(until.elementIsVisible(element), options.timeout || 3000);
 
       const actions = this.driver.actions();
       await actions.contextClick(element).perform();
@@ -661,9 +661,9 @@ export class BrowserAutomationCore {
 
     try {
       const byMethod = this.getByMethod(options.by || 'css');
-      await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 10000);
+      await this.driver.wait(until.elementLocated(byMethod(options.selector)), options.timeout || 3000);
       const element = this.driver.findElement(byMethod(options.selector));
-      await this.driver.wait(until.elementIsVisible(element), options.timeout || 10000);
+      await this.driver.wait(until.elementIsVisible(element), options.timeout || 3000);
 
       return {
         success: true,

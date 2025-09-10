@@ -252,33 +252,33 @@ class SimpleMCPServer {
           },
           {
             name: 'drag_and_drop',
-            description: 'Drag an element and drop it onto another element',
+            description: 'Drag a draggable element and drop it onto a drop zone element',
             inputSchema: {
               type: 'object',
               properties: {
                 sourceSelector: {
                   type: 'string',
-                  description: 'CSS selector or XPath for the source element to drag'
+                  description: 'CSS selector or XPath for the draggable element (e.g., button, div with draggable="true")'
                 },
                 targetSelector: {
                   type: 'string',
-                  description: 'CSS selector or XPath for the target element to drop onto'
+                  description: 'CSS selector or XPath for the drop zone element (e.g., div with id="drawflow")'
                 },
                 sourceBy: {
                   type: 'string',
                   enum: ['css', 'xpath', 'id', 'name', 'className', 'tagName'],
-                  description: 'Type of selector for source element',
+                  description: 'Type of selector for source draggable element',
                   default: 'css'
                 },
                 targetBy: {
                   type: 'string',
                   enum: ['css', 'xpath', 'id', 'name', 'className', 'tagName'],
-                  description: 'Type of selector for target element',
+                  description: 'Type of selector for target drop zone element',
                   default: 'css'
                 },
                 timeout: {
                   type: 'number',
-                  description: 'Timeout in milliseconds',
+                  description: 'Timeout in milliseconds for the drag and drop operation',
                   default: 10000
                 }
               },
@@ -436,7 +436,7 @@ class SimpleMCPServer {
             result = await this.browserCore.clickElement({
               selector: typedArgs.selector,
               by: typedArgs.by || 'css',
-              timeout: typedArgs.timeout || 10000
+              timeout: typedArgs.timeout || 3000
             });
             break;
           
@@ -445,7 +445,7 @@ class SimpleMCPServer {
               selector: typedArgs.selector,
               text: typedArgs.text,
               by: typedArgs.by || 'css',
-              timeout: typedArgs.timeout || 10000
+              timeout: typedArgs.timeout || 3000
             });
             break;
           
@@ -478,12 +478,12 @@ class SimpleMCPServer {
               {
                 selector: typedArgs.sourceSelector,
                 by: typedArgs.sourceBy || 'css',
-                timeout: typedArgs.timeout || 10000
+                timeout: typedArgs.timeout || 3000
               },
               {
                 selector: typedArgs.targetSelector,
                 by: typedArgs.targetBy || 'css',
-                timeout: typedArgs.timeout || 10000
+                timeout: typedArgs.timeout || 3000
               }
             );
             break;
@@ -492,7 +492,7 @@ class SimpleMCPServer {
             result = await this.browserCore.hoverElement({
               selector: typedArgs.selector,
               by: typedArgs.by || 'css',
-              timeout: typedArgs.timeout || 10000
+              timeout: typedArgs.timeout || 3000
             });
             break;
           
@@ -500,7 +500,7 @@ class SimpleMCPServer {
             result = await this.browserCore.doubleClickElement({
               selector: typedArgs.selector,
               by: typedArgs.by || 'css',
-              timeout: typedArgs.timeout || 10000
+              timeout: typedArgs.timeout || 3000
             });
             break;
           
@@ -508,7 +508,7 @@ class SimpleMCPServer {
             result = await this.browserCore.rightClickElement({
               selector: typedArgs.selector,
               by: typedArgs.by || 'css',
-              timeout: typedArgs.timeout || 10000
+              timeout: typedArgs.timeout || 3000
             });
             break;
           
@@ -520,7 +520,7 @@ class SimpleMCPServer {
             result = await this.browserCore.waitForElement({
               selector: typedArgs.selector,
               by: typedArgs.by || 'css',
-              timeout: typedArgs.timeout || 10000
+              timeout: typedArgs.timeout || 3000
             });
             break;
           
