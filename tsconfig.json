@@ -13,6 +13,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/simple-mcp-server.ts", "src/core/**/*", "src/types/**/*"],
+  "exclude": ["node_modules", "dist", "src/browser-manager.ts", "src/index.ts", "src/plugin-manager.ts", "src/tools/**/*"]
 }
