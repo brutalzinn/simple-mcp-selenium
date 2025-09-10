@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "ms-vscode.vscode-typescript-next",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-json",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-eslint",
+    "ms-vscode.vscode-npm-script",
+    "ms-vscode.vscode-js-debug",
+    "ms-vscode.vscode-node-debug2",
+    "ms-vscode.vscode-jest",
+    "ms-vscode.vscode-mcp"
+  ]
+}
