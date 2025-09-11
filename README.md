@@ -17,8 +17,8 @@ MCP Selenium Server lets you control browsers using **natural language** in Curs
 ### 1. Install (Docker - Recommended)
 
 ```bash
-git clone https://github.com/robertocpaes/mcp-selenium.git
-cd mcp-selenium
+git clone https://github.com/brutalzinn/simple-mcp-selenium.git
+cd simple-mcp-selenium
 ./scripts/install-simple.sh
 ```
 
@@ -63,12 +63,12 @@ Restart Cursor and start talking to your browser:
 
 ## 📚 Documentation
 
-**Complete documentation:** [https://robertocpaes.github.io/mcp-selenium/](https://robertocpaes.github.io/mcp-selenium/)
+**Complete documentation:** [https://brutalzinn.github.io/simple-mcp-selenium/](https://brutalzinn.github.io/simple-mcp-selenium/)
 
-- [Getting Started](https://robertocpaes.github.io/mcp-selenium/getting-started/)
-- [API Reference](https://robertocpaes.github.io/mcp-selenium/api-reference/)
-- [Examples](https://robertocpaes.github.io/mcp-selenium/examples/)
-- [Plugin Development](https://robertocpaes.github.io/mcp-selenium/plugins/)
+- [Getting Started](https://brutalzinn.github.io/simple-mcp-selenium/getting-started/)
+- [API Reference](https://brutalzinn.github.io/simple-mcp-selenium/api-reference/)
+- [Examples](https://brutalzinn.github.io/simple-mcp-selenium/examples/)
+- [Plugin Development](https://brutalzinn.github.io/simple-mcp-selenium/plugins/)
 
 ## 🛠️ Available Tools
 
@@ -107,7 +107,7 @@ Extend functionality with plugins:
 - **Google Search** - Built-in Google search
 - **Performance Monitor** - Track page performance
 
-[View all plugins →](https://robertocpaes.github.io/mcp-selenium/plugins/)
+[View all plugins →](https://brutalzinn.github.io/simple-mcp-selenium/plugins/)
 
 ## 🐳 Docker Commands
 
@@ -138,9 +138,9 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🆘 Need Help?
 
-- 📖 [Full Documentation](https://robertocpaes.github.io/mcp-selenium/)
-- 💬 [GitHub Discussions](https://github.com/robertocpaes/mcp-selenium/discussions)
-- 🐛 [Report Issues](https://github.com/robertocpaes/mcp-selenium/issues)
+- 📖 [Full Documentation](https://brutalzinn.github.io/simple-mcp-selenium/)
+- 💬 [GitHub Discussions](https://github.com/brutalzinn/simple-mcp-selenium/discussions)
+- 🐛 [Report Issues](https://github.com/brutalzinn/simple-mcp-selenium/issues)
 
 ---
 
