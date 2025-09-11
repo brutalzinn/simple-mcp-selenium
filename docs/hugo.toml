@@ -21,10 +21,6 @@ title = 'MCP Selenium Server'
       source = 'archetypes'
       target = 'archetypes'
   
-  # Use correct Font-Awesome version
-  [[module.replacements]]
-    old = 'github.com/FortAwesome/Font-Awesome'
-    new = 'github.com/FortAwesome/Font-Awesome@7.x'
 
 # Google Analytics (replace with your own)
 googleAnalytics = ''
