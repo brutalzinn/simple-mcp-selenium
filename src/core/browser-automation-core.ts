@@ -24,9 +24,18 @@ export interface ActionResult {
   data?: any;
 }
 
+export interface ConsoleLogEntry {
+  level: 'log' | 'error' | 'warn' | 'info' | 'debug';
+  message: string;
+  timestamp: string;
+  source?: string;
+  line?: number;
+  column?: number;
+}
+
 export class BrowserAutomationCore {
   private driver: WebDriver | null = null;
-  private consoleLogs: any[] = [];
+  private consoleLogs: ConsoleLogEntry[] = [];
 
   async openBrowser(options: BrowserOptions = {}): Promise<ActionResult> {
     try {
@@ -477,36 +486,58 @@ export class BrowserAutomationCore {
         const originalError = console.error;
         const originalWarn = console.warn;
         const originalInfo = console.info;
+        const originalDebug = console.debug;
         
         window.capturedLogs = [];
         
-        function captureLog(level, args) {
+        function captureLog(level, args, stack) {
+          const stackInfo = stack ? stack.split('\\n')[1] : '';
+          const sourceMatch = stackInfo.match(/at\\s+(.+?)\\s+\\((.+?):(\\d+):(\\d+)\\)/);
+          
           window.capturedLogs.push({
             level: level,
-            message: args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '),
-            timestamp: new Date().toISOString()
+            message: args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' '),
+            timestamp: new Date().toISOString(),
+            source: sourceMatch ? sourceMatch[1] : 'unknown',
+            line: sourceMatch ? parseInt(sourceMatch[3]) : undefined,
+            column: sourceMatch ? parseInt(sourceMatch[4]) : undefined
           });
         }
         
         console.log = function(...args) {
-          captureLog('log', args);
+          captureLog('log', args, new Error().stack);
           originalLog.apply(console, args);
         };
         
         console.error = function(...args) {
-          captureLog('error', args);
+          captureLog('error', args, new Error().stack);
           originalError.apply(console, args);
         };
         
         console.warn = function(...args) {
-          captureLog('warn', args);
+          captureLog('warn', args, new Error().stack);
           originalWarn.apply(console, args);
         };
         
         console.info = function(...args) {
-          captureLog('info', args);
+          captureLog('info', args, new Error().stack);
           originalInfo.apply(console, args);
         };
+        
+        console.debug = function(...args) {
+          captureLog('debug', args, new Error().stack);
+          originalDebug.apply(console, args);
+        };
+        
+        // Capture unhandled errors
+        window.addEventListener('error', function(event) {
+          captureLog('error', [event.error?.message || event.message], event.error?.stack);
+        });
+        
+        // Capture unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+          captureLog('error', [event.reason?.message || String(event.reason)], event.reason?.stack);
+        });
       `);
     } catch (error) {
       console.warn('Failed to setup console log capture:', error);
@@ -673,6 +704,98 @@ export class BrowserAutomationCore {
       return {
         success: false,
         message: `Element did not appear within timeout: ${options.selector} (${options.by || 'css'}): ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  async getConsoleLogs(level?: string, limit?: number): Promise<ActionResult> {
+    if (!this.driver) {
+      return {
+        success: false,
+        message: 'Browser not opened. Please call openBrowser first.',
+      };
+    }
+
+    try {
+      // Get logs from the browser
+      const logs = await this.driver.executeScript('return window.capturedLogs || [];') as ConsoleLogEntry[];
+      
+      // Filter by level if specified
+      let filteredLogs = logs;
+      if (level) {
+        filteredLogs = logs.filter((log: ConsoleLogEntry) => log.level === level);
+      }
+      
+      // Apply limit if specified
+      if (limit && limit > 0) {
+        filteredLogs = filteredLogs.slice(-limit); // Get the most recent logs
+      }
+      
+      // Update our local cache
+      this.consoleLogs = logs;
+      
+      return {
+        success: true,
+        message: `Retrieved ${filteredLogs.length} console log entries${level ? ` (filtered by level: ${level})` : ''}`,
+        data: {
+          logs: filteredLogs,
+          total: logs.length,
+          filtered: filteredLogs.length,
+          level: level || 'all'
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to get console logs: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  async clearConsoleLogs(): Promise<ActionResult> {
+    if (!this.driver) {
+      return {
+        success: false,
+        message: 'Browser not opened. Please call openBrowser first.',
+      };
+    }
+
+    try {
+      await this.driver.executeScript('window.capturedLogs = [];');
+      this.consoleLogs = [];
+      
+      return {
+        success: true,
+        message: 'Console logs cleared successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to clear console logs: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  async getConsoleLogCount(): Promise<ActionResult> {
+    if (!this.driver) {
+      return {
+        success: false,
+        message: 'Browser not opened. Please call openBrowser first.',
+      };
+    }
+
+    try {
+      const count = await this.driver.executeScript('return (window.capturedLogs || []).length;');
+      
+      return {
+        success: true,
+        message: `Console has ${count} log entries`,
+        data: { count }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to get console log count: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }

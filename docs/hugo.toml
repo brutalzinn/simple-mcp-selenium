@@ -20,6 +20,10 @@ title = 'MCP Selenium Server'
     [[module.imports.mounts]]
       source = 'archetypes'
       target = 'archetypes'
+  
+  # Disable problematic modules
+  [module.replacements]
+    'github.com/FortAwesome/Font-Awesome' = 'github.com/FortAwesome/Font-Awesome@v6.4.0'
 
 # Google Analytics (replace with your own)
 googleAnalytics = ''

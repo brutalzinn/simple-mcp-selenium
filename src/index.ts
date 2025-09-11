@@ -514,6 +514,55 @@ class SimpleMCPServer {
             },
           },
         },
+        {
+          name: 'get_console_logs',
+          description: 'Get console logs from the browser',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              level: {
+                type: 'string',
+                enum: ['log', 'error', 'warn', 'info', 'debug'],
+                description: 'Filter logs by level (optional)',
+              },
+              limit: {
+                type: 'number',
+                description: 'Maximum number of logs to return (optional, returns most recent)',
+                default: 100,
+              },
+              browserId: {
+                type: 'string',
+                description: 'Optional browser ID to use. If not provided, uses the default browser instance.',
+              },
+            },
+          },
+        },
+        {
+          name: 'clear_console_logs',
+          description: 'Clear all console logs from the browser',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              browserId: {
+                type: 'string',
+                description: 'Optional browser ID to use. If not provided, uses the default browser instance.',
+              },
+            },
+          },
+        },
+        {
+          name: 'get_console_log_count',
+          description: 'Get the number of console log entries',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              browserId: {
+                type: 'string',
+                description: 'Optional browser ID to use. If not provided, uses the default browser instance.',
+              },
+            },
+          },
+        },
       ];
 
       const pluginTools = this.pluginManager.getAllTools();
@@ -675,6 +724,21 @@ class SimpleMCPServer {
               message: `Browser with ID '${typedArgs.browserId || 'default'}' not found`,
             };
           }
+          break;
+
+        case 'get_console_logs':
+          result = await this.getBrowserInstance(typedArgs.browserId).getConsoleLogs(
+            typedArgs.level,
+            typedArgs.limit
+          );
+          break;
+
+        case 'clear_console_logs':
+          result = await this.getBrowserInstance(typedArgs.browserId).clearConsoleLogs();
+          break;
+
+        case 'get_console_log_count':
+          result = await this.getBrowserInstance(typedArgs.browserId).getConsoleLogCount();
           break;
 
         default:
