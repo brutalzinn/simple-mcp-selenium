@@ -33,3 +33,11 @@ A powerful Model Context Protocol (MCP) server that provides browser automation 
 ## Repository
 
 [GitHub Repository](https://github.com/brutalzinn/simple-mcp-selenium)
+
+## Credits
+
+Created and maintained by [@brutalzinn](https://github.com/brutalzinn)
+
+---
+
+**Contributing**: Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests to help improve this project.

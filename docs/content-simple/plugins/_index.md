@@ -297,3 +297,7 @@ DEBUG=mcp-selenium:plugins npm start
 - [API Reference](../api-reference/)
 - [Examples](../examples/)
 - [GitHub Repository](https://github.com/brutalzinn/simple-mcp-selenium)
+
+## Credits
+
+This plugin system was designed and implemented by [@brutalzinn](https://github.com/brutalzinn) as part of the MCP Selenium Server project.
