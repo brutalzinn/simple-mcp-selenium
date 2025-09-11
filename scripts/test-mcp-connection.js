@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-// Test script to verify MCP server connection
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -10,7 +9,6 @@ const __dirname = dirname(__filename);
 
 console.log('🧪 Testing MCP Server Connection...\n');
 
-// Test MCP server startup
 const serverPath = join(__dirname, 'dist', 'simple-mcp-server.js');
 console.log(`📁 Server path: ${serverPath}`);
 
@@ -31,11 +29,9 @@ server.stderr.on('data', (data) => {
   console.log('⚠️  Server error:', data.toString().trim());
 });
 
-// Test MCP protocol
 setTimeout(() => {
   console.log('\n🔍 Testing MCP Protocol...');
   
-  // Send initialize request
   const initRequest = {
     jsonrpc: "2.0",
     id: 1,
@@ -53,7 +49,6 @@ setTimeout(() => {
   console.log('📤 Sending initialize request...');
   server.stdin.write(JSON.stringify(initRequest) + '\n');
   
-  // Send list tools request
   setTimeout(() => {
     const listToolsRequest = {
       jsonrpc: "2.0",
@@ -65,7 +60,6 @@ setTimeout(() => {
     console.log('📤 Sending list tools request...');
     server.stdin.write(JSON.stringify(listToolsRequest) + '\n');
     
-    // Close after testing
     setTimeout(() => {
       console.log('\n✅ MCP Server test completed');
       console.log('📊 Server output:', output);

@@ -529,12 +529,10 @@ export class BrowserAutomationCore {
           originalDebug.apply(console, args);
         };
         
-        // Capture unhandled errors
         window.addEventListener('error', function(event) {
           captureLog('error', [event.error?.message || event.message], event.error?.stack);
         });
         
-        // Capture unhandled promise rejections
         window.addEventListener('unhandledrejection', function(event) {
           captureLog('error', [event.reason?.message || String(event.reason)], event.reason?.stack);
         });
@@ -717,21 +715,17 @@ export class BrowserAutomationCore {
     }
 
     try {
-      // Get logs from the browser
       const logs = await this.driver.executeScript('return window.capturedLogs || [];') as ConsoleLogEntry[];
       
-      // Filter by level if specified
       let filteredLogs = logs;
       if (level) {
         filteredLogs = logs.filter((log: ConsoleLogEntry) => log.level === level);
       }
       
-      // Apply limit if specified
       if (limit && limit > 0) {
-        filteredLogs = filteredLogs.slice(-limit); // Get the most recent logs
+        filteredLogs = filteredLogs.slice(-limit);
       }
       
-      // Update our local cache
       this.consoleLogs = logs;
       
       return {

@@ -9,7 +9,6 @@ const __dirname = path.dirname(__filename);
 
 console.log('🧪 Testing Cursor MCP Integration...\n');
 
-// Test the MCP server configuration
 const mcpConfigPath = '/home/robertocpaes/.cursor/mcp.json';
 console.log(`📋 Checking MCP configuration at: ${mcpConfigPath}`);
 
@@ -30,7 +29,6 @@ try {
   process.exit(1);
 }
 
-// Test the MCP server by sending a list tools request
 const serverPath = '/home/robertocpaes/Projects/Pessoal/mcp-selenium/dist/simple-mcp-server.js';
 console.log(`\n🚀 Starting MCP server: ${serverPath}`);
 
@@ -38,7 +36,6 @@ const server = spawn('node', [serverPath], {
   stdio: ['pipe', 'pipe', 'pipe']
 });
 
-// Send a list tools request
 const listToolsRequest = {
   jsonrpc: '2.0',
   id: 1,
@@ -70,7 +67,6 @@ server.on('close', (code) => {
       if (response.result && response.result.tools) {
         console.log(`\n✅ MCP Server is working! Found ${response.result.tools.length} tools:`);
         
-        // Show key tools
         const keyTools = [
           'open_browser', 'navigate_to', 'click_element', 'type_text', 
           'drag_and_drop', 'take_screenshot', 'close_browser'
@@ -85,7 +81,6 @@ server.on('close', (code) => {
           }
         });
         
-        // Check for XPath support
         const clickTool = response.result.tools.find(t => t.name === 'click_element');
         if (clickTool && clickTool.inputSchema.properties.by) {
           const hasXPath = clickTool.inputSchema.properties.by.enum.includes('xpath');
@@ -115,7 +110,6 @@ server.on('close', (code) => {
   }
 });
 
-// Kill the server after 3 seconds
 setTimeout(() => {
   console.log('\n⏰ Stopping server...');
   server.kill();

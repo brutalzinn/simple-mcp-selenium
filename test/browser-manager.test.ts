@@ -8,7 +8,6 @@ describe('BrowserManager', () => {
   });
 
   afterEach(async () => {
-    // Clean up any open browsers
     const browsers = browserManager.listBrowsers();
     for (const browser of browsers) {
       await browserManager.closeBrowser(browser.id);

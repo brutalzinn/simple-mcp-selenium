@@ -16,10 +16,7 @@ export class BrowserManager {
     try {
       const { browserId: providedId, ...browserOptions } = options;
 
-      // Use provided ID or generate one if not provided
       const browserId = providedId || uuidv4();
-
-      // Check if browser with this ID already exists
       if (this.browsers.has(browserId)) {
         return {
           success: false,
@@ -40,7 +37,6 @@ export class BrowserManager {
 
         this.browsers.set(browserId, browserInstance);
 
-        // Set as default if it's the first browser
         if (this.browsers.size === 1) {
           this.defaultBrowserId = browserId;
         }
@@ -84,7 +80,6 @@ export class BrowserManager {
       const result = await browserInstance.core.closeBrowser();
       this.browsers.delete(targetBrowserId);
 
-      // Update default browser if we closed it
       if (this.defaultBrowserId === targetBrowserId) {
         this.defaultBrowserId = this.browsers.size > 0 ? Array.from(this.browsers.keys())[0] : null;
       }

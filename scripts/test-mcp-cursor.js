@@ -9,7 +9,6 @@ const __dirname = path.dirname(__filename);
 
 console.log('Testing MCP Selenium Server with Cursor...\n');
 
-// Test the MCP server by sending a list tools request
 const serverPath = path.join(__dirname, 'dist', 'simple-mcp-server.js');
 console.log(`Starting MCP server: ${serverPath}`);
 
@@ -17,7 +16,6 @@ const server = spawn('node', [serverPath], {
   stdio: ['pipe', 'pipe', 'pipe']
 });
 
-// Send a list tools request
 const listToolsRequest = {
   jsonrpc: '2.0',
   id: 1,
@@ -67,7 +65,6 @@ server.on('close', (code) => {
   }
 });
 
-// Kill the server after 5 seconds
 setTimeout(() => {
   console.log('\n⏰ Stopping server...');
   server.kill();
