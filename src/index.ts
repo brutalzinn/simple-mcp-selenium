@@ -590,6 +590,10 @@ class SimpleMCPServer {
             ],
           };
         } catch (pluginError) {
+          if (pluginError instanceof Error && pluginError.message.includes('not found in any plugin')) {
+          } else {
+            throw pluginError;
+          }
         }
 
         switch (name) {

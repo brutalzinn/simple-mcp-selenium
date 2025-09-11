@@ -88,6 +88,17 @@ test: build ## Run tests
 	npm test
 	@echo "✅ Tests completed"
 
+test-scenarios: build ## Run test scenarios
+	@echo "🧪 Running test scenarios..."
+	@echo "   Available scenarios:"
+	@echo "   - test/scripts/test-simple-mcp.js"
+	@echo "   - test/scripts/test-browser-state-persistence.js"
+	@echo "   - test/scripts/test-multi-browser-scenario.js"
+	@echo "   - test/scripts/debug-browser-sessions.js"
+	@echo ""
+	@echo "   Example: node test/scripts/test-simple-mcp.js"
+	@echo "✅ Test scenarios available"
+
 lint: ## Run ESLint
 	@echo "🔍 Running ESLint..."
 	npm run lint

@@ -36,6 +36,7 @@ export interface ConsoleLogEntry {
 export class BrowserAutomationCore {
   private driver: WebDriver | null = null;
   private consoleLogs: ConsoleLogEntry[] = [];
+  private debugPort: number | null = null;
 
   async openBrowser(options: BrowserOptions = {}): Promise<ActionResult> {
     try {
@@ -63,7 +64,10 @@ export class BrowserAutomationCore {
         }
 
         chromeOptions.addArguments(`--window-size=${options.width || 1280},${options.height || 720}`);
-        chromeOptions.addArguments('--remote-debugging-port=9222');
+        
+        this.debugPort = 9222 + Math.floor(Math.random() * 1000);
+        chromeOptions.addArguments(`--remote-debugging-port=${this.debugPort}`);
+        chromeOptions.addArguments(`--user-data-dir=/tmp/.org.chromium.Chromium.${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
         chromeOptions.addArguments('--disable-blink-features=AutomationControlled');
         chromeOptions.addArguments('--disable-web-security');
         chromeOptions.addArguments('--allow-running-insecure-content');
@@ -94,6 +98,10 @@ export class BrowserAutomationCore {
         }
 
         chromeOptions.addArguments(`--window-size=${options.width || 1280},${options.height || 720}`);
+        
+        this.debugPort = 9222 + Math.floor(Math.random() * 1000);
+        chromeOptions.addArguments(`--remote-debugging-port=${this.debugPort}`);
+        chromeOptions.addArguments(`--user-data-dir=/tmp/.org.chromium.DuckDuckGo.${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
         chromeOptions.addArguments('--disable-blink-features=AutomationControlled');
         chromeOptions.addArguments('--disable-web-security');
         chromeOptions.addArguments('--user-agent=Mozilla/5.0 (compatible; DuckDuckGoBot/1.0; +http://duckduckgo.com/duckduckbot.html)');
