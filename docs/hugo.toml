@@ -1,0 +1,87 @@
+baseURL = 'https://robertocpaes.github.io/mcp-selenium/'
+languageCode = 'en-us'
+title = 'MCP Selenium Server'
+theme = 'docsy'
+
+# Google Analytics (replace with your own)
+googleAnalytics = ''
+
+# Enable features
+[params]
+  # Enable search
+  search = true
+  
+  # Enable edit page
+  edit_page = false
+  
+  # Enable feedback
+  feedback = false
+  
+  # Enable versioning
+  versioning = false
+  
+  # Enable breadcrumbs
+  breadcrumbs = true
+  
+  # Enable sidebar
+  sidebar = true
+  
+  # Enable table of contents
+  toc = true
+  
+  # Enable code highlighting
+  code_highlighting = true
+  
+  # Enable copy code buttons
+  copy_code_buttons = true
+
+# Menu configuration
+[[menu.main]]
+  name = "Home"
+  url = "/"
+  weight = 10
+
+[[menu.main]]
+  name = "Getting Started"
+  url = "/getting-started/"
+  weight = 20
+
+[[menu.main]]
+  name = "API Reference"
+  url = "/api-reference/"
+  weight = 30
+
+[[menu.main]]
+  name = "Examples"
+  url = "/examples/"
+  weight = 40
+
+[[menu.main]]
+  name = "Plugins"
+  url = "/plugins/"
+  weight = 50
+
+[[menu.main]]
+  name = "GitHub"
+  url = "https://github.com/robertocpaes/mcp-selenium"
+  weight = 60
+
+# Markup configuration
+[markup]
+  [markup.highlight]
+    style = 'github'
+    lineNos = true
+    lineNumbersInTable = true
+    noClasses = false
+    codeFences = true
+    guessSyntax = true
+    tabWidth = 2
+    wrap = true
+
+# Output formats
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+  page = ["HTML"]
+  section = ["HTML", "RSS"]
+  taxonomy = ["HTML", "RSS"]
+  taxonomyTerm = ["HTML", "RSS"]

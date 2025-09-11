@@ -1,37 +1,70 @@
-# 🚀 Docker Installation Guide - Keep MCP Server Running
+---
+title: "Installation"
+linkTitle: "Installation"
+weight: 10
+description: "Install MCP Selenium Server using Docker or local installation"
+---
 
-This guide shows you how to install the MCP Selenium server using Docker and Docker Compose so it runs automatically when your computer starts.
+## Installation Options
 
-## 🐳 **Docker Installation (Recommended)**
+### Option 1: Docker (Recommended)
 
-**Best for**: All platforms, isolated environments, easy deployment
+The easiest way to get started with full browser support:
 
 ```bash
+# Clone the repository
+git clone https://github.com/robertocpaes/mcp-selenium.git
+cd mcp-selenium
+
 # Run the simple installation script
 ./scripts/install-simple.sh
 ```
 
-**What it does:**
+This will:
 
-- Creates a Docker container with Chrome browser
-- Installs all dependencies automatically
-- Sets up automatic restart
-- Provides full browser automation support
-- Isolates the service completely
+- ✅ Create a Docker container with Chrome browser
+- ✅ Install all dependencies automatically
+- ✅ Set up automatic restart
+- ✅ Provide full browser automation support
 
-**Docker Management:**
+### Option 2: Local Installation
+
+For development or custom setups:
 
 ```bash
-docker-compose up -d        # Start service
-docker-compose down         # Stop service
-docker-compose restart      # Restart service
-docker-compose logs -f      # View logs
-docker-compose ps           # Check status
+# Clone the repository
+git clone https://github.com/robertocpaes/mcp-selenium.git
+cd mcp-selenium
+
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
 ```
 
-## 🔧 **Manual Docker Installation (Advanced)**
+## Docker Management
 
-### **Docker (Manual)**
+### Start/Stop Services
+
+```bash
+# Start the service
+docker-compose up -d
+
+# Stop the service
+docker-compose down
+
+# Restart the service
+docker-compose restart
+
+# View logs
+docker-compose logs -f
+
+# Check status
+docker-compose ps
+```
+
+### Manual Docker Installation
 
 1. **Build the image:**
 
@@ -51,25 +84,11 @@ docker run -d \
   mcp-selenium
 ```
 
-### **Docker Compose (Manual)**
-
-1. **Start the service:**
-
-```bash
-docker-compose up -d --build
-```
-
-2. **Check status:**
-
-```bash
-docker-compose ps
-```
-
-## ✅ **Verification**
+## Verification
 
 After installation, verify the service is running:
 
-### **Check Status**
+### Check Status
 
 ```bash
 # Check Docker container status
@@ -82,29 +101,29 @@ docker-compose logs -f
 node scripts/test-docker-browser.js
 ```
 
-### **Test MCP Server**
+### Test MCP Server
 
 ```bash
 # Test if the server responds
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | docker exec -i mcp-selenium-server node -e "process.stdin.pipe(process.stdout)"
 ```
 
-## 🔧 **Troubleshooting**
+## Troubleshooting
 
-### **Docker Issues**
+### Docker Issues
 
 - Check logs: `docker-compose logs -f`
 - Rebuild container: `docker-compose down && docker-compose up -d --build`
 - Check Docker status: `docker ps`
 - Check browser support: `node scripts/test-docker-browser.js`
 
-### **Browser Not Working**
+### Browser Not Working
 
 - Ensure Xvfb is running: `docker exec mcp-selenium-server ps aux | grep Xvfb`
 - Check Chrome installation: `docker exec mcp-selenium-server which chromium-browser`
 - Verify display: `docker exec mcp-selenium-server echo $DISPLAY`
 
-## 🎯 **Why Docker?**
+## Why Docker?
 
 **Docker is the best choice because:**
 
@@ -116,7 +135,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | docker exec 
 - ✅ No system dependencies to install
 - ✅ Consistent environment
 
-## 🚀 **Ready to Go!**
+## Ready to Go!
 
 Once installed, your MCP Selenium server will:
 

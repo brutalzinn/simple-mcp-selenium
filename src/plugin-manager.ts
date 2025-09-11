@@ -1,5 +1,5 @@
 import { Tool } from '@modelcontextprotocol/sdk/types';
-import { BrowserAutomationCore } from './core/browser-automation-core.js';
+import { BrowserManager } from './browser-manager.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -9,21 +9,21 @@ export interface MCPPlugin {
   description: string;
   tools: Tool[];
   handlers: {
-    [toolName: string]: (args: any, browserCore: BrowserAutomationCore) => Promise<any>;
+    [toolName: string]: (args: any, browserManager: BrowserManager) => Promise<any>;
   };
 }
 
 export class PluginManager {
   private plugins: Map<string, MCPPlugin> = new Map();
-  private browserCore: BrowserAutomationCore;
+  private browserManager: BrowserManager;
 
-  constructor(browserCore: BrowserAutomationCore) {
-    this.browserCore = browserCore;
+  constructor(browserManager: BrowserManager) {
+    this.browserManager = browserManager;
   }
 
   async loadAllPlugins(): Promise<void> {
     const pluginsDir = path.join(process.cwd(), 'plugins');
-    
+
     if (!fs.existsSync(pluginsDir)) {
       console.log('📁 Plugins directory not found, creating...');
       fs.mkdirSync(pluginsDir, { recursive: true });
@@ -56,7 +56,7 @@ export class PluginManager {
       }
 
       if (plugin.initialize && typeof plugin.initialize === 'function') {
-        await plugin.initialize(this.browserCore);
+        await plugin.initialize(this.browserManager);
       }
 
       this.plugins.set(plugin.name, plugin);
@@ -68,21 +68,21 @@ export class PluginManager {
 
   getAllTools(): Tool[] {
     const tools: Tool[] = [];
-    
+
     for (const plugin of this.plugins.values()) {
       tools.push(...plugin.tools);
     }
-    
+
     return tools;
   }
 
   async executeTool(toolName: string, args: any): Promise<any> {
     for (const plugin of this.plugins.values()) {
       if (plugin.handlers[toolName]) {
-        return await plugin.handlers[toolName](args, this.browserCore);
+        return await plugin.handlers[toolName](args, this.browserManager);
       }
     }
-    
+
     throw new Error(`Tool ${toolName} not found in any plugin`);
   }
 

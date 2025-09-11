@@ -41,7 +41,7 @@ export class BrowserAutomationCore {
 
       if (browserType === 'chrome') {
         const chromeOptions = new chrome.Options();
-        
+
         if (isHeadless) {
           chromeOptions.addArguments('--headless=new');
           chromeOptions.addArguments('--disable-gpu');
@@ -52,17 +52,17 @@ export class BrowserAutomationCore {
           chromeOptions.addArguments('--disable-images');
           chromeOptions.addArguments('--disable-javascript');
         }
-        
+
         chromeOptions.addArguments(`--window-size=${options.width || 1280},${options.height || 720}`);
         chromeOptions.addArguments('--remote-debugging-port=9222');
         chromeOptions.addArguments('--disable-blink-features=AutomationControlled');
         chromeOptions.addArguments('--disable-web-security');
         chromeOptions.addArguments('--allow-running-insecure-content');
-        
+
         if (options.userAgent) {
           chromeOptions.addArguments(`--user-agent=${options.userAgent}`);
         }
-        
+
         if (options.proxy) {
           chromeOptions.addArguments(`--proxy-server=${options.proxy}`);
         }
@@ -78,17 +78,17 @@ export class BrowserAutomationCore {
           .setLoggingPrefs(loggingPrefs);
       } else if (browserType === 'duckduckgo') {
         const chromeOptions = new chrome.Options();
-        
+
         if (isHeadless) {
           chromeOptions.addArguments('--headless=new');
           chromeOptions.addArguments('--disable-gpu');
         }
-        
+
         chromeOptions.addArguments(`--window-size=${options.width || 1280},${options.height || 720}`);
         chromeOptions.addArguments('--disable-blink-features=AutomationControlled');
         chromeOptions.addArguments('--disable-web-security');
         chromeOptions.addArguments('--user-agent=Mozilla/5.0 (compatible; DuckDuckGoBot/1.0; +http://duckduckgo.com/duckduckbot.html)');
-        
+
         if (options.proxy) {
           chromeOptions.addArguments(`--proxy-server=${options.proxy}`);
         }
@@ -98,18 +98,18 @@ export class BrowserAutomationCore {
           .setChromeOptions(chromeOptions);
       } else if (browserType === 'firefox') {
         const firefoxOptions = new (require('selenium-webdriver/firefox').Options)();
-        
+
         if (isHeadless) {
           firefoxOptions.addArguments('--headless');
         }
-        
+
         firefoxOptions.addArguments(`--width=${options.width || 1280}`);
         firefoxOptions.addArguments(`--height=${options.height || 720}`);
-        
+
         if (options.userAgent) {
           firefoxOptions.setPreference('general.useragent.override', options.userAgent);
         }
-        
+
         if (options.proxy) {
           const [host, port] = options.proxy.split(':');
           firefoxOptions.setPreference('network.proxy.type', 1);
@@ -134,12 +134,12 @@ export class BrowserAutomationCore {
       return {
         success: true,
         message: `Browser opened successfully: ${browserText} in ${modeText} mode`,
-        data: { browserType, isHeadless }
+        data: { browserType, isHeadless },
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to open browser: ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to open browser: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -148,7 +148,7 @@ export class BrowserAutomationCore {
     if (!this.driver) {
       return {
         success: true,
-        message: 'No browser instance to close'
+        message: 'No browser instance to close',
       };
     }
 
@@ -159,12 +159,12 @@ export class BrowserAutomationCore {
 
       return {
         success: true,
-        message: 'Browser closed successfully'
+        message: 'Browser closed successfully',
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to close browser: ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to close browser: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -173,7 +173,7 @@ export class BrowserAutomationCore {
     if (!this.driver) {
       return {
         success: false,
-        message: 'Browser not opened. Please call openBrowser first.'
+        message: 'Browser not opened. Please call openBrowser first.',
       };
     }
 
@@ -182,12 +182,12 @@ export class BrowserAutomationCore {
       return {
         success: true,
         message: `Navigated to: ${url}`,
-        data: { url }
+        data: { url },
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to navigate to ${url}: ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to navigate to ${url}: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -196,7 +196,7 @@ export class BrowserAutomationCore {
     if (!this.driver) {
       return {
         success: false,
-        message: 'Browser not opened. Please call openBrowser first.'
+        message: 'Browser not opened. Please call openBrowser first.',
       };
     }
 
@@ -209,12 +209,12 @@ export class BrowserAutomationCore {
       return {
         success: true,
         message: `Clicked element: ${options.selector}`,
-        data: { selector: options.selector }
+        data: { selector: options.selector },
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to click element: ${options.selector} (${options.by || 'css'}): ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to click element: ${options.selector} (${options.by || 'css'}): ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -223,7 +223,7 @@ export class BrowserAutomationCore {
     if (!this.driver) {
       return {
         success: false,
-        message: 'Browser not opened. Please call openBrowser first.'
+        message: 'Browser not opened. Please call openBrowser first.',
       };
     }
 
@@ -237,12 +237,12 @@ export class BrowserAutomationCore {
       return {
         success: true,
         message: `Typed "${options.text}" into element: ${options.selector}`,
-        data: { selector: options.selector, text: options.text }
+        data: { selector: options.selector, text: options.text },
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to type text into element: ${options.selector} (${options.by || 'css'}): ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to type text into element: ${options.selector} (${options.by || 'css'}): ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -251,7 +251,7 @@ export class BrowserAutomationCore {
     if (!this.driver) {
       return {
         success: false,
-        message: 'Browser not opened. Please call openBrowser first.'
+        message: 'Browser not opened. Please call openBrowser first.',
       };
     }
 
@@ -260,12 +260,12 @@ export class BrowserAutomationCore {
       return {
         success: true,
         message: `Page title: ${title}`,
-        data: { title }
+        data: { title },
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to get page title: ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to get page title: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -274,7 +274,7 @@ export class BrowserAutomationCore {
     if (!this.driver) {
       return {
         success: false,
-        message: 'Browser not opened. Please call openBrowser first.'
+        message: 'Browser not opened. Please call openBrowser first.',
       };
     }
 
@@ -283,12 +283,12 @@ export class BrowserAutomationCore {
       return {
         success: true,
         message: `Current URL: ${url}`,
-        data: { url }
+        data: { url },
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to get page URL: ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to get page URL: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -297,7 +297,7 @@ export class BrowserAutomationCore {
     if (!this.driver) {
       return {
         success: false,
-        message: 'Browser not opened. Please call openBrowser first.'
+        message: 'Browser not opened. Please call openBrowser first.',
       };
     }
 
@@ -306,12 +306,12 @@ export class BrowserAutomationCore {
       return {
         success: true,
         message: `Script executed successfully. Result: ${JSON.stringify(result)}`,
-        data: { result }
+        data: { result },
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to execute script: ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to execute script: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -320,7 +320,7 @@ export class BrowserAutomationCore {
     if (!this.driver) {
       return {
         success: false,
-        message: 'Browser not opened. Please call openBrowser first.'
+        message: 'Browser not opened. Please call openBrowser first.',
       };
     }
 
@@ -328,19 +328,19 @@ export class BrowserAutomationCore {
       const screenshot = await this.driver.takeScreenshot();
       const finalFilename = filename || `screenshot-${Date.now()}.png`;
       const filepath = join(process.cwd(), 'screenshots', finalFilename);
-      
+
       await fs.mkdir(join(process.cwd(), 'screenshots'), { recursive: true });
       await fs.writeFile(filepath, screenshot, 'base64');
 
       return {
         success: true,
         message: `Screenshot saved to: ${filepath}`,
-        data: { filepath }
+        data: { filepath },
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to take screenshot: ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to take screenshot: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -349,14 +349,14 @@ export class BrowserAutomationCore {
     if (!this.driver) {
       return {
         success: false,
-        message: 'Browser not opened. Please call openBrowser first.'
+        message: 'Browser not opened. Please call openBrowser first.',
       };
     }
 
     try {
       const sourceByMethod = this.getByMethod(sourceOptions.by || 'css');
       const targetByMethod = this.getByMethod(targetOptions.by || 'css');
-      
+
       const sourceElement = await this.driver.wait(until.elementLocated(sourceByMethod(sourceOptions.selector)), sourceOptions.timeout || 3000);
       const targetElement = await this.driver.wait(until.elementLocated(targetByMethod(targetOptions.selector)), targetOptions.timeout || 3000);
 
@@ -369,12 +369,12 @@ export class BrowserAutomationCore {
       return {
         success: true,
         message: `Successfully dragged element ${sourceOptions.selector} to ${targetOptions.selector}`,
-        data: { source: sourceOptions.selector, target: targetOptions.selector }
+        data: { source: sourceOptions.selector, target: targetOptions.selector },
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to drag and drop: ${error instanceof Error ? error.message : String(error)}`
+        message: `Failed to drag and drop: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -383,7 +383,7 @@ export class BrowserAutomationCore {
     if (!this.driver) {
       return {
         success: false,
-        message: 'Browser not opened. Please call openBrowser first.'
+        message: 'Browser not opened. Please call openBrowser first.',
       };
     }
 
@@ -401,33 +401,33 @@ export class BrowserAutomationCore {
         let result: string = '';
 
         switch (action.action) {
-          case 'click':
-            const clickResult = await this.clickElement({ selector: action.selector, by: action.by, timeout: action.timeout });
-            result = clickResult.success ? `✓ Clicked ${action.selector}` : `✗ Failed to click ${action.selector}`;
-            break;
+        case 'click':
+          const clickResult = await this.clickElement({ selector: action.selector, by: action.by, timeout: action.timeout });
+          result = clickResult.success ? `✓ Clicked ${action.selector}` : `✗ Failed to click ${action.selector}`;
+          break;
 
-          case 'type':
-            const typeResult = await this.typeText({ selector: action.selector, text: action.value || '', by: action.by, timeout: action.timeout });
-            result = typeResult.success ? `✓ Typed "${action.value}" into ${action.selector}` : `✗ Failed to type into ${action.selector}`;
-            break;
+        case 'type':
+          const typeResult = await this.typeText({ selector: action.selector, text: action.value || '', by: action.by, timeout: action.timeout });
+          result = typeResult.success ? `✓ Typed "${action.value}" into ${action.selector}` : `✗ Failed to type into ${action.selector}`;
+          break;
 
-          case 'navigate_to':
-            const navResult = await this.navigateTo(action.value);
-            result = navResult.success ? `✓ Navigated to ${action.value}` : `✗ Failed to navigate to ${action.value}`;
-            break;
+        case 'navigate_to':
+          const navResult = await this.navigateTo(action.value);
+          result = navResult.success ? `✓ Navigated to ${action.value}` : `✗ Failed to navigate to ${action.value}`;
+          break;
 
-          case 'execute_script':
-            const scriptResult = await this.executeScript(action.script, action.args || []);
-            result = scriptResult.success ? `✓ Executed script` : `✗ Failed to execute script`;
-            break;
+        case 'execute_script':
+          const scriptResult = await this.executeScript(action.script, action.args || []);
+          result = scriptResult.success ? '✓ Executed script' : '✗ Failed to execute script';
+          break;
 
-          case 'take_screenshot':
-            const screenshotResult = await this.takeScreenshot(action.value, action.checked);
-            result = screenshotResult.success ? `✓ ${screenshotResult.message}` : `✗ Failed to take screenshot`;
-            break;
+        case 'take_screenshot':
+          const screenshotResult = await this.takeScreenshot(action.value, action.checked);
+          result = screenshotResult.success ? `✓ ${screenshotResult.message}` : '✗ Failed to take screenshot';
+          break;
 
-          default:
-            result = `✗ Unknown action: ${action.action}`;
+        default:
+          result = `✗ Unknown action: ${action.action}`;
         }
 
         if (result.startsWith('✓')) {
@@ -458,13 +458,13 @@ export class BrowserAutomationCore {
       '',
       'Results:',
       ...results,
-      ...(errors.length > 0 ? ['', 'Errors:', ...errors] : [])
+      ...(errors.length > 0 ? ['', 'Errors:', ...errors] : []),
     ].join('\n');
 
     return {
       success: errorCount === 0,
       message: allResults,
-      data: { successCount, errorCount, results, errors }
+      data: { successCount, errorCount, results, errors },
     };
   }
 
@@ -515,20 +515,20 @@ export class BrowserAutomationCore {
 
   private getByMethod(by: string) {
     switch (by.toLowerCase()) {
-      case 'css':
-        return By.css;
-      case 'xpath':
-        return By.xpath;
-      case 'id':
-        return By.id;
-      case 'name':
-        return By.name;
-      case 'classname':
-        return By.className;
-      case 'tagname':
-        return By.tagName;
-      default:
-        return By.css;
+    case 'css':
+      return By.css;
+    case 'xpath':
+      return By.xpath;
+    case 'id':
+      return By.id;
+    case 'name':
+      return By.name;
+    case 'classname':
+      return By.className;
+    case 'tagname':
+      return By.tagName;
+    default:
+      return By.css;
     }
   }
 
@@ -615,20 +615,20 @@ export class BrowserAutomationCore {
     try {
       const elements = await this.driver.findElements(By.css(selector));
       const limitedElements = elements.slice(0, limit);
-      
+
       const elementData = await Promise.all(limitedElements.map(async (element, index) => {
         try {
           const tagName = await element.getTagName();
           const text = await element.getText();
           const isDisplayed = await element.isDisplayed();
           const isEnabled = await element.isEnabled();
-          
+
           return {
             index,
             tagName,
             text: text.substring(0, 100), // Limit text length
             displayed: isDisplayed,
-            enabled: isEnabled
+            enabled: isEnabled,
           };
         } catch (error) {
           return {
@@ -636,7 +636,7 @@ export class BrowserAutomationCore {
             tagName: 'unknown',
             text: 'Error reading element',
             displayed: false,
-            enabled: false
+            enabled: false,
           };
         }
       }));
@@ -644,7 +644,7 @@ export class BrowserAutomationCore {
       return {
         success: true,
         message: `Found ${elementData.length} elements matching selector: ${selector}`,
-        data: elementData
+        data: elementData,
       };
     } catch (error) {
       return {
