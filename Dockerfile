@@ -46,13 +46,10 @@ COPY . .
 RUN npm run build
 
 # Create screenshots directory
-RUN mkdir -p screenshots && chown -R mcp:nodejs screenshots
-
-# Switch to non-root user
-USER mcp
+RUN mkdir -p screenshots
 
 # Expose port (if needed)
 EXPOSE 3000
 
-# Start Xvfb and the application
-CMD ["sh", "-c", "rm -f /tmp/.X99-lock && Xvfb :99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset & sleep 2 && node dist/simple-mcp-server.js"]
+# Start Xvfb and the MCP server
+CMD ["sh", "-c", "rm -f /tmp/.X99-lock && Xvfb :99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset & sleep 2 && echo 'MCP Selenium Server ready for stdio communication' && node dist/index.js"]

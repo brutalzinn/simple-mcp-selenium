@@ -7,17 +7,23 @@ services:
       - NODE_ENV=production
       - DISPLAY=:99
     volumes:
-    # make sure this folder is writtable at your system
+      # make sure this folder is writable at your system
       - ./screenshots:/app/screenshots
       - ./plugins:/app/plugins
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     tmpfs:
       - /tmp
-    ports:
-      - "3000:3000"
+    # MCP servers communicate via stdio, no HTTP ports needed
+    # ports:
+    #   - "3000:3000"
     shm_size: 2gb
     security_opt:
       - seccomp:unconfined
+    # Keep container running for MCP communication
+    stdin_open: true
+    tty: true
+    # Run as root to avoid X11 permission issues
+    user: "0:0"
     networks:
       - mcp-network
 
