@@ -28,7 +28,7 @@ googleAnalytics = ''
 # Enable features
 [params]
   # Enable search
-  search = true
+  search = false
   
   # Enable edit page
   edit_page = false
@@ -53,6 +53,9 @@ googleAnalytics = ''
   
   # Enable copy code buttons
   copy_code_buttons = true
+  
+  # Disable Swagger/API docs that cause template errors
+  swagger = false
 
 # Menu configuration
 [[menu.main]]
@@ -99,8 +102,18 @@ googleAnalytics = ''
 
 # Output formats
 [outputs]
-  home = ["HTML", "RSS", "JSON"]
+  home = ["HTML", "RSS"]
   page = ["HTML"]
   section = ["HTML", "RSS"]
   taxonomy = ["HTML", "RSS"]
   term = ["HTML", "RSS"]
+
+# Build configuration
+[build]
+  noJS = false
+  useResourceCache = true
+
+# Disable problematic features
+[params.ui]
+  search = false
+  swagger = false
