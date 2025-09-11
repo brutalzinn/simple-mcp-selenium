@@ -145,4 +145,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 **Made with ❤️ for the Cursor IDE community**
+
 **Made with 😠 for other alternatives i found that uses internal proxies to somewhere i dont know**
