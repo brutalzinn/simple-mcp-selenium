@@ -102,11 +102,6 @@ Perfect for testing multiple users or scenarios:
 
 Extend functionality with plugins:
 
-- **CAPTCHA Solver** - Handle CAPTCHAs automatically
-- **Data Extractor** - Extract data from tables and forms
-- **Google Search** - Built-in Google search
-- **Performance Monitor** - Track page performance
-
 [View all plugins →](https://brutalzinn.github.io/simple-mcp-selenium/plugins/)
 
 ## 🐳 Docker Commands
@@ -146,4 +141,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 **Made with ❤️ for the Cursor IDE community**
 
-**Made with 😠 for other alternatives i found that uses internal proxies to somewhere i dont know**
+**Made with 😠 for other alternatives that uses internal proxies to somewhere i dont know**
