@@ -19,7 +19,7 @@ Opens a new browser instance with optional custom ID.
 - `headless` (boolean, optional): Run in headless mode. Default: false.
 - `width` (number, optional): Browser window width. Default: 1280.
 - `height` (number, optional): Browser window height. Default: 720.
-- `browserType` (string, optional): Browser type. Options: chrome, firefox, duckduckgo. Default: chrome.
+- `browserType` (string, optional): Browser type. Default: chrome.
 - `userAgent` (string, optional): Custom user agent string.
 - `proxy` (string, optional): Proxy server (format: host:port).
 
@@ -287,3 +287,83 @@ Gets the number of console logs.
 
 - `success` (boolean): Whether the operation succeeded.
 - `count` (number): Number of console logs.
+
+## Multi-Browser Management
+
+The MCP Selenium Server supports managing multiple browser instances simultaneously. Each browser instance can be identified by a unique ID and maintains its own state independently.
+
+### Key Features
+
+- **Independent Sessions**: Each browser instance maintains its own cookies, session data, and state
+- **Custom IDs**: LLM clients can specify custom browser IDs for better organization
+- **State Persistence**: Browsers stay open and maintain their state until explicitly closed
+- **Concurrent Operations**: Multiple browsers can be operated simultaneously
+- **Isolated Environments**: Each browser uses unique debugging ports and user data directories
+
+### Usage Pattern
+
+```json
+// Open first browser
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "open_browser",
+    "arguments": {
+      "browserId": "user1",
+      "headless": false
+    }
+  }
+}
+
+// Open second browser
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "open_browser",
+    "arguments": {
+      "browserId": "user2",
+      "headless": false
+    }
+  }
+}
+
+// Navigate user1 to Google
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "navigate_to",
+    "arguments": {
+      "url": "https://google.com",
+      "browserId": "user1"
+    }
+  }
+}
+
+// Navigate user2 to GitHub
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "navigate_to",
+    "arguments": {
+      "url": "https://github.com",
+      "browserId": "user2"
+    }
+  }
+}
+```
+
+### Browser State Management
+
+- **URL Persistence**: Each browser remembers its current URL
+- **Form Data**: Form inputs and selections are preserved
+- **Cookies & Sessions**: Login states and authentication persist
+- **Console Logs**: Each browser maintains its own console log history
+- **Screenshots**: Screenshots are saved per browser instance

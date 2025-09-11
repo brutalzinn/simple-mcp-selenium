@@ -2,7 +2,7 @@
 
 > **Powerful browser automation for Cursor IDE with multi-browser instance support**
 
-[![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://robertocpaes.github.io/mcp-selenium/)
+[![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://brutalzinn.github.io/simple-mcp-selenium)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![GitHub](https://img.shields.io/badge/github-mcp--selenium-black)](https://github.com/robertocpaes/mcp-selenium)
 

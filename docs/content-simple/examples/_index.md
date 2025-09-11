@@ -7,6 +7,41 @@ description: "Practical examples of using MCP Selenium Server"
 
 Practical examples demonstrating how to use the MCP Selenium Server for various automation tasks.
 
+## Docker Usage
+
+### Starting with Docker Compose
+
+```bash
+# Start the MCP server
+docker compose up --build
+
+# Run in background
+docker compose up -d --build
+
+# View logs
+docker compose logs -f
+
+# Stop the server
+docker compose down
+```
+
+### Testing Docker Installation
+
+```bash
+# Test MCP communication
+echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}' | docker exec -i <container_name> node dist/index.js
+
+# Open a browser
+echo '{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "open_browser", "arguments": {"browserId": "docker-test", "headless": true}}}' | docker exec -i <container_name> node dist/index.js
+```
+
+### Docker Benefits
+
+- **No Local Dependencies**: Chrome and ChromeDriver are included
+- **Consistent Environment**: Same setup across different systems
+- **Easy Updates**: Simple `docker compose pull` and restart
+- **Isolation**: No conflicts with local browser installations
+
 ## Basic Browser Automation
 
 ### Simple Navigation

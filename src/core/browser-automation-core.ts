@@ -7,7 +7,7 @@ export interface BrowserOptions {
   headless?: boolean;
   width?: number;
   height?: number;
-  browserType?: 'chrome' | 'duckduckgo' | 'firefox';
+  browserType?: 'chrome';
   userAgent?: string;
   proxy?: string;
 }
@@ -89,64 +89,14 @@ export class BrowserAutomationCore {
           .forBrowser('chrome')
           .setChromeOptions(chromeOptions)
           .setLoggingPrefs(loggingPrefs);
-      } else if (browserType === 'duckduckgo') {
-        const chromeOptions = new chrome.Options();
-
-        if (isHeadless) {
-          chromeOptions.addArguments('--headless=new');
-          chromeOptions.addArguments('--disable-gpu');
-        }
-
-        chromeOptions.addArguments(`--window-size=${options.width || 1280},${options.height || 720}`);
-        
-        this.debugPort = 9222 + Math.floor(Math.random() * 1000);
-        chromeOptions.addArguments(`--remote-debugging-port=${this.debugPort}`);
-        chromeOptions.addArguments(`--user-data-dir=/tmp/.org.chromium.DuckDuckGo.${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-        chromeOptions.addArguments('--disable-blink-features=AutomationControlled');
-        chromeOptions.addArguments('--disable-web-security');
-        chromeOptions.addArguments('--user-agent=Mozilla/5.0 (compatible; DuckDuckGoBot/1.0; +http://duckduckgo.com/duckduckbot.html)');
-
-        if (options.proxy) {
-          chromeOptions.addArguments(`--proxy-server=${options.proxy}`);
-        }
-
-        builder = builder
-          .forBrowser('chrome')
-          .setChromeOptions(chromeOptions);
-      } else if (browserType === 'firefox') {
-        const firefoxOptions = new (require('selenium-webdriver/firefox').Options)();
-
-        if (isHeadless) {
-          firefoxOptions.addArguments('--headless');
-        }
-
-        firefoxOptions.addArguments(`--width=${options.width || 1280}`);
-        firefoxOptions.addArguments(`--height=${options.height || 720}`);
-
-        if (options.userAgent) {
-          firefoxOptions.setPreference('general.useragent.override', options.userAgent);
-        }
-
-        if (options.proxy) {
-          const [host, port] = options.proxy.split(':');
-          firefoxOptions.setPreference('network.proxy.type', 1);
-          firefoxOptions.setPreference('network.proxy.http', host);
-          firefoxOptions.setPreference('network.proxy.http_port', parseInt(port));
-        }
-
-        builder = builder
-          .forBrowser('firefox')
-          .setFirefoxOptions(firefoxOptions);
       }
 
       this.driver = await builder.build();
 
-      if (browserType === 'chrome' || browserType === 'duckduckgo') {
-        await this.setupConsoleLogCapture();
-      }
+      await this.setupConsoleLogCapture();
 
       const modeText = isHeadless ? 'headless' : 'headed';
-      const browserText = browserType === 'duckduckgo' ? 'DuckDuckGo (Chrome)' : browserType;
+      const browserText = browserType;
 
       return {
         success: true,

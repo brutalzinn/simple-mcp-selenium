@@ -9,18 +9,47 @@ A powerful Model Context Protocol (MCP) server that provides browser automation 
 
 ## Features
 
-- **Multi-browser Support**: Chrome, Firefox, and DuckDuckGo browsers
+- **Chrome Browser Support**: Full Chrome browser automation
 - **Custom Browser IDs**: LLM clients can specify custom browser IDs for session management
 - **Persistent Sessions**: Browsers stay open until explicitly closed
 - **Comprehensive Tools**: Navigation, clicking, typing, screenshots, and more
 - **Plugin System**: Extensible architecture for custom tools
 - **Console Logging**: Capture and read browser console output
+- **Docker Support**: Easy deployment with Docker Compose
+- **Multi-instance Management**: Handle multiple browser instances simultaneously
+- **State Persistence**: Browsers maintain their state and URL between operations
 
 ## Quick Start
 
-1. Install the MCP server
-2. Configure your MCP client
-3. Start automating browsers!
+### Option 1: Docker Compose (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/brutalzinn/simple-mcp-selenium.git
+cd simple-mcp-selenium
+
+# Start with Docker Compose
+docker compose up --build
+```
+
+### Option 2: Local Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Start the server
+npm start
+```
+
+### Using with MCP Clients
+
+1. Configure your MCP client to connect to the server
+2. Use the available tools for browser automation
+3. Manage multiple browser instances with custom IDs
 
 ## Documentation
 

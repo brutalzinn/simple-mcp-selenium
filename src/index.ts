@@ -63,7 +63,7 @@ class SimpleMCPServer {
               },
               browserType: {
                 type: 'string',
-                enum: ['chrome', 'duckduckgo', 'firefox'],
+                enum: ['chrome'],
                 description: 'Type of browser to use',
                 default: 'chrome',
               },
