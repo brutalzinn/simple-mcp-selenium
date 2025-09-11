@@ -39,30 +39,15 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "npm"
-
-      - name: Install dependencies
+      - name: Prepare Hugo site
         run: |
           cd docs
-          npm install
-
-      - name: Initialize Hugo modules
-        run: |
-          cd docs
-          hugo mod init github.com/brutalzinn/simple-mcp-selenium
-          hugo mod get -u
-          hugo mod tidy
-          # Clean up any problematic modules
-          go mod tidy
+          # No dependencies needed for minimal configuration
 
       - name: Build with Hugo
         run: |
           cd docs
-          hugo --minify --buildDrafts --buildFuture
+          hugo --config hugo-minimal.toml --contentDir content-simple --minify --buildDrafts --buildFuture
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

@@ -100,14 +100,6 @@ googleAnalytics = ''
     tabWidth = 2
     wrap = true
 
-# Output formats
-[outputs]
-  home = ["HTML", "RSS"]
-  page = ["HTML"]
-  section = ["HTML", "RSS"]
-  taxonomy = ["HTML", "RSS"]
-  term = ["HTML", "RSS"]
-
 # Build configuration
 [build]
   noJS = false
@@ -117,3 +109,11 @@ googleAnalytics = ''
 [params.ui]
   search = false
   swagger = false
+
+# Output formats
+[outputs]
+  home = ["HTML", "RSS"]
+  page = ["HTML"]
+  section = ["HTML", "RSS"]
+  taxonomy = ["HTML", "RSS"]
+  term = ["HTML", "RSS"]
