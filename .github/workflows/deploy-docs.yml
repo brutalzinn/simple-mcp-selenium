@@ -57,7 +57,7 @@ jobs:
           hugo mod get -u
           hugo mod tidy
           # Ensure correct Font-Awesome version
-          go mod edit -replace github.com/FortAwesome/Font-Awesome=github.com/FortAwesome/Font-Awesome@7.x || true
+          go mod edit -replace github.com/FortAwesome/Font-Awesome=github.com/FortAwesome/Font-Awesome@v7.0.1 || true
 
       - name: Build with Hugo
         run: |
