@@ -1,4 +1,4 @@
-baseURL = 'https://robertocpaes.github.io/mcp-selenium/'
+baseURL = 'https://brutalzinn.github.io/simple-mcp-selenium/'
 languageCode = 'en-us'
 title = 'MCP Selenium Server'
 theme = 'docsy'
@@ -63,7 +63,7 @@ googleAnalytics = ''
 
 [[menu.main]]
   name = "GitHub"
-  url = "https://github.com/robertocpaes/mcp-selenium"
+  url = "https://github.com/brutalzinn/simple-mcp-selenium"
   weight = 60
 
 # Markup configuration
