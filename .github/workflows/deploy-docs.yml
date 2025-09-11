@@ -51,6 +51,12 @@ jobs:
           cd docs
           npm install
 
+      - name: Initialize Hugo modules
+        run: |
+          cd docs
+          hugo mod get -u
+          hugo mod tidy
+
       - name: Build with Hugo
         run: |
           cd docs
