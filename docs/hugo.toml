@@ -1,7 +1,25 @@
 baseURL = 'https://brutalzinn.github.io/simple-mcp-selenium/'
 languageCode = 'en-us'
 title = 'MCP Selenium Server'
-theme = 'docsy'
+
+[module]
+  [[module.imports]]
+    path = 'github.com/google/docsy'
+    [[module.imports.mounts]]
+      source = 'assets'
+      target = 'assets'
+    [[module.imports.mounts]]
+      source = 'layouts'
+      target = 'layouts'
+    [[module.imports.mounts]]
+      source = 'static'
+      target = 'static'
+    [[module.imports.mounts]]
+      source = 'i18n'
+      target = 'i18n'
+    [[module.imports.mounts]]
+      source = 'archetypes'
+      target = 'archetypes'
 
 # Google Analytics (replace with your own)
 googleAnalytics = ''
@@ -84,4 +102,4 @@ googleAnalytics = ''
   page = ["HTML"]
   section = ["HTML", "RSS"]
   taxonomy = ["HTML", "RSS"]
-  taxonomyTerm = ["HTML", "RSS"]
+  term = ["HTML", "RSS"]
