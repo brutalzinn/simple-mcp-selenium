@@ -1,0 +1,28 @@
+# MCP Selenium Server Configuration
+
+## MCP Server Setup
+
+The project includes a MCP (Model Context Protocol) server for browser automation using Selenium Grid.
+
+### Configuration
+
+- MCP Server: `src/grid-mcp-server.ts`
+- Configuration: `mcp.json`
+- Docker Compose: `docker-compose.yml`
+
+### Available Tools
+
+- `open_browser` - Open a new browser instance
+- `navigate_to` - Navigate to a URL
+- `click_element` - Click on elements
+- `type_text` - Type text into fields
+- `take_screenshot` - Capture screenshots
+- `execute_script` - Run JavaScript
+- `get_page_info` - Get page information
+- `close_browser` - Close browser session
+- `list_sessions` - List active sessions
+- `close_all_browsers` - Close all sessions
+
+### Usage
+
+The MCP server manages Docker containers for Selenium Hub and Chrome nodes automatically.

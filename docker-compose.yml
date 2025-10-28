@@ -1,32 +1,20 @@
+version: "3.8"
+
 services:
-  mcp-selenium:
-    build: .
-    container_name: mcp-selenium-server
-    restart: unless-stopped
+  selenium-hub:
+    image: selenium/hub:4.15.0
+    container_name: selenium-hub
+    ports:
+      - "4444:4444"
+      - "4442:4442"
+      - "4443:4443"
     environment:
-      - NODE_ENV=production
-      - DISPLAY=:99
-    volumes:
-      # make sure this folder is writable at your system
-      - ./screenshots:/app/screenshots
-      - ./plugins:/app/plugins
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    tmpfs:
-      - /tmp
-    # MCP servers communicate via stdio, no HTTP ports needed
-    # ports:
-    #   - "3000:3000"
-    shm_size: 2gb
-    security_opt:
-      - seccomp:unconfined
-    # Keep container running for MCP communication
-    stdin_open: true
-    tty: true
-    # Run as root to avoid X11 permission issues
-    user: "0:0"
+      - GRID_MAX_SESSION=16
+      - GRID_BROWSER_TIMEOUT=300
+      - GRID_TIMEOUT=300
     networks:
-      - mcp-network
+      - selenium-grid
 
 networks:
-  mcp-network:
+  selenium-grid:
     driver: bridge
