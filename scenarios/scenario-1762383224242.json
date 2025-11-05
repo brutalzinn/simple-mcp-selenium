@@ -1,0 +1,20 @@
+{
+  "scenarioId": "scenario-1762383224242",
+  "name": "test-scenario-1",
+  "sessionId": "e7533bed84f939bc9745488b139687db",
+  "description": "Test recording",
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "https://www.google.com",
+      "timestamp": 1762383225776
+    }
+  ],
+  "metadata": {
+    "totalSteps": 1,
+    "duration": 5.821,
+    "createdAt": "2025-11-05T22:53:44.242Z",
+    "lastModified": "2025-11-05T22:53:50.063Z",
+    "variablesUsed": []
+  }
+}

@@ -21,6 +21,11 @@ import { closeBrowserTool } from './tools/browser/closeBrowser.js';
 import { debugPageStateTool } from './tools/browser/debugPageState.js';
 import { getPageDebugInfoTool } from './tools/browser/getPageDebugInfo.js';
 import { getInteractiveElementsTool } from './tools/browser/getInteractiveElements.js';
+import { recordScenarioTool } from './tools/scenario/recordScenario.js';
+import { stopRecordingScenarioTool } from './tools/scenario/stopRecordingScenario.js';
+import { listScenariosTool } from './tools/scenario/listScenarios.js';
+import { updateScenarioTool } from './tools/scenario/updateScenario.js';
+import { deleteScenarioTool } from './tools/scenario/deleteScenario.js';
 import { PluginManager } from './utils/pluginManager.js';
 import { MCPPlugin } from './types/plugin.js';
 import { fileURLToPath } from 'url';
@@ -692,11 +697,11 @@ class SimpleMCPServer {
             break;
 
           case 'record_scenario':
-            result = await this.recordScenario(args);
+            result = await recordScenarioTool(args, this.getSession.bind(this), this.activeRecordings, this.scenarios, this.logger);
             break;
 
           case 'stop_recording_scenario':
-            result = await this.stopRecordingScenario(args);
+            result = await stopRecordingScenarioTool(args, this.scenarios, this.activeRecordings, this.scenarioStoragePath, this.logger);
             break;
 
           case 'replay_scenario':
@@ -704,15 +709,15 @@ class SimpleMCPServer {
             break;
 
           case 'list_scenarios':
-            result = await this.listScenarios(args);
+            result = await listScenariosTool(args, this.scenarios);
             break;
 
           case 'update_scenario':
-            result = await this.updateScenario(args);
+            result = await updateScenarioTool(args, this.scenarios, this.scenarioStoragePath, this.logger);
             break;
 
           case 'delete_scenario':
-            result = await this.deleteScenario(args);
+            result = await deleteScenarioTool(args, this.scenarios, this.scenarioStoragePath, this.logger);
             break;
 
           case 'list_elements':
@@ -1386,71 +1391,6 @@ class SimpleMCPServer {
     }
   }
 
-  private async recordScenario(args: any) {
-    const { sessionId, scenarioName, description } = args;
-    const session = await this.getSession(sessionId);
-    if (!session) return { success: false, message: `Session '${sessionId}' not found` };
-
-    if (this.activeRecordings.has(sessionId)) {
-      return { success: false, message: `Recording already in progress for session '${sessionId}'` };
-    }
-
-    const scenarioId = `scenario-${Date.now()}`;
-    this.activeRecordings.set(sessionId, {
-      sessionId,
-      steps: [],
-      startTime: new Date(),
-    });
-
-    const newScenario: Scenario = {
-      scenarioId,
-      name: scenarioName,
-      sessionId: sessionId, // Store the session ID with the scenario
-      description,
-      steps: [],
-      metadata: {
-        totalSteps: 0,
-        duration: 0,
-        createdAt: new Date().toISOString(),
-        lastModified: new Date().toISOString(),
-        variablesUsed: [],
-      },
-    };
-    this.scenarios.set(scenarioId, newScenario);
-
-    this.logger.info('Scenario recording started', { sessionId, scenarioName, scenarioId });
-    return { success: true, message: `Recording started for scenario '${scenarioName}'`, data: { scenarioId, scenarioName } };
-  }
-
-  private async stopRecordingScenario(args: any) {
-    const { scenarioName, saveScenario = true } = args;
-    // Find the scenario by name
-    const scenarioEntry = Array.from(this.scenarios.entries()).find(([, s]) => s.name === scenarioName);
-
-    if (!scenarioEntry) {
-      return { success: false, message: `Scenario '${scenarioName}' not found.` };
-    }
-
-    const [scenarioId, scenario] = scenarioEntry;
-    const activeRecording = this.activeRecordings.get(scenario.sessionId);
-
-    if (!activeRecording) {
-      return { success: false, message: `No active recording found for scenario '${scenarioName}'.` };
-    }
-
-    scenario.steps = activeRecording.steps;
-    scenario.metadata.totalSteps = activeRecording.steps.length;
-    scenario.metadata.duration = (new Date().getTime() - activeRecording.startTime.getTime()) / 1000;
-    scenario.metadata.lastModified = new Date().toISOString();
-
-    if (saveScenario) {
-      await this.saveScenario(scenario);
-    }
-
-    this.activeRecordings.delete(activeRecording.sessionId);
-    this.logger.info('Scenario recording stopped', { scenarioName, scenarioId, totalSteps: scenario.metadata.totalSteps });
-    return { success: true, message: `Recording stopped for scenario '${scenarioName}'`, data: { scenarioId, scenarioName, totalSteps: scenario.metadata.totalSteps, duration: scenario.metadata.duration } };
-  }
 
   private async replayScenario(args: any) {
     const { scenarioName, sessionId: userSessionId, fastMode = false, stopOnError = false, skipScreenshots = true, takeScreenshots = false, variables = {} } = args;
@@ -1602,91 +1542,6 @@ class SimpleMCPServer {
     };
   }
 
-  private async listScenarios(args: any) {
-    const { filter, limit = 50 } = args;
-    let scenarios = Array.from(this.scenarios.values());
-
-    if (filter) {
-      const lowerCaseFilter = filter.toLowerCase();
-      scenarios = scenarios.filter(s =>
-        s.name.toLowerCase().includes(lowerCaseFilter) ||
-        s.description?.toLowerCase().includes(lowerCaseFilter)
-      );
-    }
-
-    const sortedScenarios = scenarios.sort((a, b) => new Date(b.metadata.lastModified).getTime() - new Date(a.metadata.lastModified).getTime());
-    const limitedScenarios = sortedScenarios.slice(0, limit);
-
-    return {
-      success: true,
-      message: `Found ${limitedScenarios.length} scenarios`,
-      data: {
-        scenarios: limitedScenarios.map(s => ({
-          scenarioId: s.scenarioId,
-          name: s.name,
-          description: s.description,
-          totalSteps: s.metadata.totalSteps,
-          duration: s.metadata.duration,
-          createdAt: s.metadata.createdAt,
-          lastModified: s.metadata.lastModified,
-          lastUsed: s.metadata.lastUsed,
-        })),
-      },
-    };
-  }
-
-  private async updateScenario(args: any) {
-    const { scenarioName, newName, description, steps, variables } = args;
-    let scenario = this.scenarios.get(scenarioName) || Array.from(this.scenarios.values()).find(s => s.name === scenarioName);
-
-    if (!scenario) {
-      return { success: false, message: `Scenario '${scenarioName}' not found.` };
-    }
-
-    if (newName) scenario.name = newName;
-    if (description) scenario.description = description;
-    if (steps) {
-      scenario.steps = steps;
-      scenario.metadata.totalSteps = steps.length;
-    }
-    if (variables) scenario.variables = { ...scenario.variables, ...variables };
-
-    scenario.metadata.lastModified = new Date().toISOString();
-    await this.saveScenario(scenario);
-
-    return {
-      success: true,
-      message: `Scenario '${scenarioName}' updated successfully`,
-      data: { scenarioId: scenario.scenarioId, updated: { steps: steps ? steps.length : 0, variables: variables ? Object.keys(variables) : [] } },
-    };
-  }
-
-  private async deleteScenario(args: any) {
-    const { scenarioName, confirm = false } = args;
-    const scenarioEntry = Array.from(this.scenarios.entries()).find(([, s]) => s.name === scenarioName);
-
-    if (!scenarioEntry) {
-      return { success: false, message: `Scenario '${scenarioName}' not found.` };
-    }
-    const [scenarioId, scenario] = scenarioEntry;
-
-    if (!confirm) {
-      return { success: false, message: `Confirmation required to delete scenario '${scenarioName}'. Set 'confirm: true' in arguments.` };
-    }
-
-    try {
-      const filePath = path.join(this.scenarioStoragePath, `${scenarioId}.json`);
-      if (fs.existsSync(filePath)) {
-        await fs.promises.unlink(filePath);
-      }
-      this.scenarios.delete(scenarioId);
-      this.logger.info('Scenario deleted', { scenarioName, scenarioId });
-      return { success: true, message: `Scenario '${scenarioName}' deleted successfully` };
-    } catch (error) {
-      this.logger.error('Error deleting scenario:', { scenarioName, error: error instanceof Error ? error.message : String(error) });
-      return { success: false, message: `Failed to delete scenario '${scenarioName}': ${error instanceof Error ? error.message : String(error)}` };
-    }
-  }
 
   async run() {
     const transport = new StdioServerTransport();
