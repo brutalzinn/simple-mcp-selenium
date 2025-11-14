@@ -123,21 +123,15 @@ export async function getInteractiveElementsTool(
     `, elementLimit);
 
     const result = data as { count: number; total: number; elements: any[] };
-    logger.info('Interactive elements retrieved', { sessionId, count: result.count });
-
     return {
       success: true,
-      message: `Found ${result.count} interactive elements (${result.total} total visible)`,
+      message: `Found ${result.count} elements`,
       data: result
     };
   } catch (error) {
-    logger.error('Failed to get interactive elements', {
-      sessionId: args.sessionId,
-      error: error instanceof Error ? error.message : String(error)
-    });
     return {
       success: false,
-      message: `Failed to get interactive elements: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Error: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }

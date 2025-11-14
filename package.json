@@ -1,16 +1,16 @@
 {
-  "name": "mcp-selenium-server",
+  "name": "mcp-selenium",
   "version": "1.0.1",
   "description": "MCP Server for browser automation using Selenium",
-  "main": "dist/grid-mcp-server.js",
+  "main": "dist/index.js",
   "bin": {
-    "mcp-selenium": "dist/grid-mcp-server.js"
+    "mcp-selenium": "dist/index.js"
   },
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/grid-mcp-server.js",
-    "dev": "tsx src/grid-mcp-server.ts",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
     "postinstall": "node scripts/download-chromedriver.js"
   },
   "keywords": [

@@ -139,14 +139,25 @@ export class ChromeDriverManager {
         }
     }
 
-    async getDriver(browserId: string, headless: boolean): Promise<WebDriver> {
+    async getDriver(browserId: string, headless: boolean, width?: number, height?: number, x?: number, y?: number, monitor?: string): Promise<WebDriver> {
         const chromeDriverPath = await this.getCompatibleChromeDriverPath();
 
         const chromeOptions = new chrome.Options();
+        const windowWidth = width || 1920;
+        const windowHeight = height || 1080;
+
         if (headless) {
-            chromeOptions.addArguments('--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-web-security', '--remote-debugging-port=0', '--window-size=1920,1080', '--disable-extensions', '--disable-plugins', '--disable-images', '--disable-default-apps', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--mute-audio', '--no-first-run', '--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--enable-automation', '--password-store=basic', '--use-mock-keychain');
+            chromeOptions.addArguments('--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-web-security', '--remote-debugging-port=0', `--window-size=${windowWidth},${windowHeight}`, '--disable-extensions', '--disable-plugins', '--disable-images', '--disable-default-apps', '--disable-sync', '--disable-translate', '--hide-scrollbars', '--mute-audio', '--no-first-run', '--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--enable-automation', '--password-store=basic', '--use-mock-keychain');
         } else {
-            chromeOptions.addArguments('--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-web-security', '--remote-debugging-port=0', '--window-size=1920,1080');
+            chromeOptions.addArguments('--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-web-security', '--remote-debugging-port=0', `--window-size=${windowWidth},${windowHeight}`);
+
+            // Set window position if specified
+            if (x !== undefined && y !== undefined) {
+                chromeOptions.addArguments(`--window-position=${x},${y}`);
+            } else if (monitor) {
+                const monitorPos = this.getMonitorPosition(monitor);
+                chromeOptions.addArguments(`--window-position=${monitorPos.x},${monitorPos.y}`);
+            }
         }
 
         const loggingPrefs = {
@@ -163,5 +174,17 @@ export class ChromeDriverManager {
             driver = await new Builder().forBrowser('chrome').setChromeService(service).setChromeOptions(chromeOptions).setLoggingPrefs(loggingPrefs as any).build();
         }
         return driver;
+    }
+
+    private getMonitorPosition(monitor: string): { x: number; y: number } {
+        switch (monitor) {
+            case 'primary':
+                return { x: 0, y: 0 };
+            case 'secondary':
+                return { x: 1920, y: 0 }; // Assuming 1920px width for primary monitor
+            case 'auto':
+            default:
+                return { x: 0, y: 0 };
+        }
     }
 }

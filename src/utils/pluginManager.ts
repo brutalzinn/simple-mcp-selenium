@@ -80,7 +80,7 @@ export class PluginManager {
         return Array.from(this.plugins.values());
     }
 
-    async executeTool(pluginName: string, toolName: string, args: Record<string, any>) {
+    async executeTool(pluginName: string, toolName: string, args: Record<string, any>, context?: any) {
         const plugin = this.plugins.get(pluginName);
         if (!plugin) {
             throw new Error(`Plugin not found: ${pluginName}`);
@@ -89,6 +89,13 @@ export class PluginManager {
         const handler = plugin.handlers[toolName];
         if (!handler) {
             throw new Error(`Tool not found: ${toolName} in plugin ${pluginName}`);
+        }
+
+        // Pass context to handler if it accepts it
+        if (context && typeof handler === 'function') {
+            // Check if handler expects context parameter
+            const handlerWithContext = handler as (args: Record<string, any>, context?: any) => Promise<any>;
+            return await handlerWithContext(args, context);
         }
 
         return await handler(args);

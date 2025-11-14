@@ -18,8 +18,16 @@ export async function getPageDebugInfoTool(
         let elements: any[] = [];
 
         if (includeConsole) {
-            // This part needs Chrome DevTools Protocol or similar for real console logs
-            consoleLogs.push({ level: 'warn', message: 'Console logs capture not fully implemented via Selenium WebDriver. Requires Chrome DevTools Protocol.' });
+            try {
+                const logs = await session.driver.manage().logs().get('browser');
+                consoleLogs = logs.slice(-logLimit).map((log: any) => ({
+                    level: log.level?.name?.toLowerCase() || 'log',
+                    message: log.message || '',
+                    timestamp: new Date(log.timestamp).toISOString()
+                }));
+            } catch (error) {
+                // Silently fail - console logs are optional
+            }
         }
 
         if (includeElements) {
@@ -28,8 +36,7 @@ export async function getPageDebugInfoTool(
 
         return { success: true, message: 'Page debug info retrieved', data: { url, title, consoleLogs, elements } };
     } catch (error) {
-        logger.error('Failed to get page debug info', { sessionId: args.sessionId, error: error instanceof Error ? error.message : String(error) });
-        return { success: false, message: `Failed to get page debug info: ${error instanceof Error ? error.message : String(error)}` };
+        return { success: false, message: `Error: ${error instanceof Error ? error.message : String(error)}` };
     }
 }
 

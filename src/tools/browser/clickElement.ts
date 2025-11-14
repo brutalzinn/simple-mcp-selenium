@@ -1,4 +1,4 @@
-import { BrowserSession, ScenarioStep } from '../../common/types.js';
+import { BrowserSession } from '../../common/types.js';
 import { Logger } from '../../utils/logger.js';
 import { WebDriver, WebElement } from 'selenium-webdriver';
 
@@ -10,7 +10,6 @@ export async function clickElementTool(
     args: any,
     getSession: (sessionId: string) => Promise<BrowserSession | null>,
     findElementBySelector: FindElementBySelectorFunction,
-    activeRecordings: Map<string, { sessionId: string; steps: ScenarioStep[]; startTime: Date; } | null>,
     logger: Logger
 ) {
     const { sessionId, selector, by = 'css', timeout = 10000 } = args;
@@ -49,15 +48,8 @@ export async function clickElementTool(
             return { success: true, message: 'Element clicked' };
         `, selector, by);
 
-        if (activeRecordings.has(session.sessionId)) {
-            const recording = activeRecordings.get(session.sessionId);
-            recording?.steps.push({ action: 'click', selector, by, timestamp: Date.now() });
-        }
-
-        logger.info('Element clicked', { sessionId, selector, by });
-        return { success: true, message: 'Element clicked successfully' };
+        return { success: true, message: 'Element clicked' };
     } catch (error) {
-        logger.error('Failed to click element', { sessionId, selector, by, error: error instanceof Error ? error.message : String(error) });
-        return { success: false, message: `Failed to click element: ${error instanceof Error ? error.message : String(error)}` };
+        return { success: false, message: `Error: ${error instanceof Error ? error.message : String(error)}` };
     }
 }

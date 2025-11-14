@@ -1,4 +1,4 @@
-import { BrowserSession, ScenarioStep } from '../../common/types.js';
+import { BrowserSession } from '../../common/types.js';
 import { Logger } from '../../utils/logger.js';
 import { WebDriver, WebElement } from 'selenium-webdriver';
 
@@ -10,7 +10,6 @@ export async function typeTextTool(
     args: any,
     getSession: (sessionId: string) => Promise<BrowserSession | null>,
     findElementBySelector: FindElementBySelectorFunction,
-    activeRecordings: Map<string, { sessionId: string; steps: ScenarioStep[]; startTime: Date; } | null>,
     logger: Logger
 ) {
     const { sessionId, selector, text, by = 'css', timeout = 10000 } = args;
@@ -60,15 +59,8 @@ export async function typeTextTool(
             return { success: true, message: 'Text typed' };
         `, selector, by, text);
 
-        if (activeRecordings.has(session.sessionId)) {
-            const recording = activeRecordings.get(session.sessionId);
-            recording?.steps.push({ action: 'type', selector, by, value: text, timestamp: Date.now() });
-        }
-
-        logger.info('Text typed', { sessionId, selector, text: '[REDACTED]' });
-        return { success: true, message: 'Text typed successfully' };
+        return { success: true, message: 'Text typed' };
     } catch (error) {
-        logger.error('Failed to type text', { sessionId, selector, error: error instanceof Error ? error.message : String(error) });
-        return { success: false, message: `Failed to type text: ${error instanceof Error ? error.message : String(error)}` };
+        return { success: false, message: `Error: ${error instanceof Error ? error.message : String(error)}` };
     }
 }

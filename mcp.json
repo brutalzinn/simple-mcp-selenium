@@ -2,7 +2,9 @@
   "mcpServers": {
     "selenium-browser": {
       "command": "node",
-      "args": ["/home/robertocpaes/Projects/Pessoal/mcp-selenium/dist/grid-mcp-server.js"],
+      "args": [
+        "/home/robertocpaes/Projects/Pessoal/mcp-selenium/dist/index.js"
+      ],
       "env": {
         "NODE_ENV": "production"
       }

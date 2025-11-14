@@ -10,7 +10,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import { Logger } from './utils/logger.js';
 import { ChromeDriverManager } from './utils/chromeDriverManager.js';
-import { BrowserSession, Scenario, ScenarioStep } from './common/types.js';
+import { BrowserSession } from './common/types.js';
 import { openBrowserTool } from './tools/browser/openBrowser.js';
 import { navigateToTool } from './tools/browser/navigateTo.js';
 import { clickElementTool } from './tools/browser/clickElement.js';
@@ -18,14 +18,8 @@ import { typeTextTool } from './tools/browser/typeText.js';
 import { takeScreenshotTool } from './tools/browser/takeScreenshot.js';
 import { executeScriptTool } from './tools/browser/executeScript.js';
 import { closeBrowserTool } from './tools/browser/closeBrowser.js';
-import { debugPageStateTool } from './tools/browser/debugPageState.js';
 import { getPageDebugInfoTool } from './tools/browser/getPageDebugInfo.js';
 import { getInteractiveElementsTool } from './tools/browser/getInteractiveElements.js';
-import { recordScenarioTool } from './tools/scenario/recordScenario.js';
-import { stopRecordingScenarioTool } from './tools/scenario/stopRecordingScenario.js';
-import { listScenariosTool } from './tools/scenario/listScenarios.js';
-import { updateScenarioTool } from './tools/scenario/updateScenario.js';
-import { deleteScenarioTool } from './tools/scenario/deleteScenario.js';
 import { PluginManager } from './utils/pluginManager.js';
 import { MCPPlugin } from './types/plugin.js';
 import { fileURLToPath } from 'url';
@@ -34,34 +28,31 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-class SimpleMCPServer {
+class MCPSeleniumServer {
   private logger: Logger;
   private server: Server;
   private browserSessions: Map<string, BrowserSession> = new Map();
   private chromeDriverManager: ChromeDriverManager;
-  private activeRecordings: Map<string, { sessionId: string; steps: ScenarioStep[]; startTime: Date; } | null> = new Map();
-  private scenarios: Map<string, Scenario> = new Map();
-  private scenarioStoragePath: string;
   private pluginManager: PluginManager;
   private pluginsPath: string;
 
   constructor() {
     this.logger = new Logger();
     this.server = new Server({
-      name: 'simple-browser-mcp-server',
+      name: 'mcp-selenium',
       version: '1.0.0',
-      description: 'Simple MCP Server for browser automation using direct Chrome with auto ChromeDriver compatibility',
+      description: 'MCP Server for browser automation using Selenium',
     });
-    this.scenarioStoragePath = path.join(__dirname, '..', 'scenarios');
-    if (!fs.existsSync(this.scenarioStoragePath)) {
-      fs.mkdirSync(this.scenarioStoragePath, { recursive: true });
-    }
     this.pluginsPath = path.join(__dirname, '..', 'plugins');
     this.pluginManager = new PluginManager(this.logger);
     this.chromeDriverManager = new ChromeDriverManager(this.logger);
+    // Load plugins first, then setup handlers (plugins are loaded synchronously in setupToolHandlers)
+    this.loadPlugins().then(() => {
+      this.logger.info('Plugins loaded, server ready');
+    }).catch((error) => {
+      this.logger.error('Failed to load plugins during initialization', { error: error instanceof Error ? error.message : String(error) });
+    });
     this.setupToolHandlers();
-    this.loadExistingScenarios();
-    this.loadPlugins();
   }
 
   private async loadPlugins() {
@@ -69,7 +60,6 @@ class SimpleMCPServer {
       const plugins = await this.pluginManager.loadAllPlugins(this.pluginsPath);
       if (plugins.length > 0) {
         this.logger.info(`Loaded ${plugins.length} plugin(s)`, { plugins: plugins.map(p => p.name) });
-        // Register plugin tools will be done in setupToolHandlers
       }
     } catch (error) {
       this.logger.error('Failed to load plugins', { error: error instanceof Error ? error.message : String(error) });
@@ -81,22 +71,46 @@ class SimpleMCPServer {
       const tools: any[] = [
         {
           name: 'open_browser',
-          description: 'Open a browser window',
+          description: 'Open a browser window with a unique ID. Multiple browser instances can be managed simultaneously using different browserId values.',
           inputSchema: {
             type: 'object',
             properties: {
               browserId: {
                 type: 'string',
-                description: 'Unique identifier for the browser session',
+                description: 'Unique identifier for the browser session. Use different IDs to manage multiple browser instances.',
               },
               headless: {
                 type: 'boolean',
-                description: 'Run without window (default: false)',
-                default: false,
+                description: 'Run without window. Default: false',
               },
               url: {
                 type: 'string',
                 description: 'Optional URL to navigate to immediately after opening browser',
+              },
+              badge: {
+                type: 'string',
+                description: 'Optional badge text to display on the page for debugging/identification purposes',
+              },
+              width: {
+                type: 'number',
+                description: 'Window width in pixels. Default: 1920',
+              },
+              height: {
+                type: 'number',
+                description: 'Window height in pixels. Default: 1080',
+              },
+              x: {
+                type: 'number',
+                description: 'Window X position in pixels. Can be used with monitor option',
+              },
+              y: {
+                type: 'number',
+                description: 'Window Y position in pixels. Can be used with monitor option',
+              },
+              monitor: {
+                type: 'string',
+                enum: ['primary', 'secondary', 'auto'],
+                description: 'Monitor to display browser on. primary=0,0; secondary=1920,0; auto=detect. Can be combined with x/y for fine-tuning',
               },
             },
             required: ['browserId'],
@@ -104,49 +118,61 @@ class SimpleMCPServer {
         },
         {
           name: 'navigate_to',
-          description: 'Go to a URL',
+          description: 'Navigate browser to a URL',
           inputSchema: {
             type: 'object',
             properties: {
               sessionId: {
                 type: 'string',
-                description: 'Session ID of the browser to control',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
               },
               url: {
                 type: 'string',
                 description: 'URL to navigate to',
               },
             },
-            required: ['sessionId', 'url'],
+            required: ['url'],
           },
         },
         {
           name: 'click_element',
-          description: 'Click an element',
+          description: 'Click on an element using CSS selector',
           inputSchema: {
             type: 'object',
             properties: {
               sessionId: {
                 type: 'string',
-                description: 'Session ID of the browser to control',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
               },
               selector: {
                 type: 'string',
                 description: 'CSS selector for the element to click',
               },
             },
-            required: ['sessionId', 'selector'],
+            required: ['selector'],
           },
         },
         {
           name: 'type_text',
-          description: 'Type text into an input',
+          description: 'Type text into an input field',
           inputSchema: {
             type: 'object',
             properties: {
               sessionId: {
                 type: 'string',
-                description: 'Session ID of the browser to control',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
               },
               selector: {
                 type: 'string',
@@ -157,342 +183,93 @@ class SimpleMCPServer {
                 description: 'Text to type',
               },
             },
-            required: ['sessionId', 'selector', 'text'],
+            required: ['selector', 'text'],
           },
         },
         {
           name: 'take_screenshot',
-          description: 'Capture screenshot',
+          description: 'Capture a screenshot of the current page',
           inputSchema: {
             type: 'object',
             properties: {
               sessionId: {
                 type: 'string',
-                description: 'Session ID of the browser to control',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
               },
               filename: {
                 type: 'string',
-                description: 'Filename for the screenshot',
+                description: 'Optional filename to save the screenshot',
               },
             },
-            required: ['sessionId'],
           },
         },
         {
           name: 'execute_script',
-          description: 'Run JavaScript in browser',
+          description: 'Execute JavaScript code in the browser context. The script receives arguments from the args array as function parameters.',
           inputSchema: {
             type: 'object',
             properties: {
               sessionId: {
                 type: 'string',
-                description: 'Session ID of the browser to control',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
               },
               script: {
                 type: 'string',
-                description: 'JavaScript code to execute',
+                description: 'JavaScript code to execute. Arguments from args array are passed as function parameters (arguments[0], arguments[1], etc.)',
+              },
+              args: {
+                type: 'array',
+                description: 'Optional array of arguments to pass to the script. Each element can be a string, number, boolean, object, or null',
+                items: {
+                  oneOf: [
+                    { type: 'string' },
+                    { type: 'number' },
+                    { type: 'boolean' },
+                    { type: 'object' },
+                    { type: 'null' },
+                  ],
+                },
               },
             },
-            required: ['sessionId', 'script'],
+            required: ['script'],
           },
         },
         {
           name: 'close_browser',
-          description: 'Close browser',
+          description: 'Close browser by sessionId or browserId',
           inputSchema: {
             type: 'object',
             properties: {
               sessionId: {
                 type: 'string',
-                description: 'Session ID of the browser to close',
+                description: 'Session ID of the browser to close (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser to close (alternative to sessionId)',
               },
             },
-            required: ['sessionId'],
           },
         },
         {
-          name: 'debug_page',
-          description: 'Get page debug info (console logs, errors)',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser to control',
-              },
-            },
-            required: ['sessionId'],
-          },
-        },
-        {
-          name: 'start_recording',
-          description: 'Start recording browser interactions for later playback',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser to control',
-              },
-              recordingName: {
-                type: 'string',
-                description: 'Name for the recording',
-              },
-            },
-            required: ['sessionId', 'recordingName'],
-          },
-        },
-        {
-          name: 'stop_recording',
-          description: 'Stop recording and save the recorded interactions',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser to control',
-              },
-            },
-            required: ['sessionId'],
-          },
-        },
-        {
-          name: 'play_recording',
-          description: 'Play back a previously recorded interaction sequence with optional parameter substitution',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser to control',
-              },
-              recordingName: {
-                type: 'string',
-                description: 'Name of the recording to play',
-              },
-              parameters: {
-                type: 'object',
-                description: 'Parameters to substitute in the recording (e.g., username, password, email)',
-              },
-            },
-            required: ['sessionId', 'recordingName'],
-          },
-        },
-        {
-          name: 'get_recordings',
-          description: 'Get all available recordings (read-only)',
+          name: 'list_browsers',
+          description: 'List all active browser instances with their IDs and session information',
           inputSchema: {
             type: 'object',
             properties: {},
           },
         },
         {
-          name: 'get_page_debug_info',
-          description: 'Get page info (elements, console, performance)',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser to control',
-              },
-              includeConsole: {
-                type: 'boolean',
-                description: 'Include console logs',
-                default: true,
-              },
-              includeElements: {
-                type: 'boolean',
-                description: 'Include page elements',
-                default: true,
-              },
-              elementLimit: {
-                type: 'number',
-                description: 'Maximum number of elements to return',
-                default: 50,
-              },
-              logLimit: {
-                type: 'number',
-                description: 'Maximum number of console logs to return (0 for all logs)',
-                default: 20,
-              },
-            },
-            required: ['sessionId'],
-          },
-        },
-        {
-          name: 'get_interactive_elements',
-          description: 'List clickable elements (buttons, inputs, links)',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser to control',
-              },
-              elementLimit: {
-                type: 'number',
-                description: 'Maximum number of interactive elements to return',
-                default: 50,
-              },
-            },
-            required: ['sessionId'],
-          },
-        },
-        {
-          name: 'record_scenario',
-          description: 'Start recording browser actions',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              scenarioName: {
-                type: 'string',
-                description: 'Unique name for the scenario',
-              },
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser to record',
-              },
-              description: {
-                type: 'string',
-                description: 'Optional description of the scenario',
-              },
-            },
-            required: ['scenarioName', 'sessionId'],
-          },
-        },
-        {
-          name: 'stop_recording_scenario',
-          description: 'Stop recording and save',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              scenarioName: {
-                type: 'string',
-                description: 'Name of the scenario to stop recording',
-              },
-              saveScenario: {
-                type: 'boolean',
-                description: 'Whether to save the scenario to file',
-                default: true,
-              },
-            },
-            required: ['scenarioName'],
-          },
-        },
-        {
-          name: 'replay_scenario',
-          description: 'Replay recorded actions',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              scenarioName: {
-                type: 'string',
-                description: 'Name of the scenario to execute',
-              },
-              sessionId: {
-                type: 'string',
-                description: 'Session ID to use (creates new if not provided)',
-              },
-              fastMode: {
-                type: 'boolean',
-                description: 'Execute steps without delays',
-                default: false,
-              },
-              stopOnError: {
-                type: 'boolean',
-                description: 'Stop execution on first error',
-                default: false,
-              },
-              skipScreenshots: {
-                type: 'boolean',
-                description: 'Skip taking screenshots during replay',
-                default: true,
-              },
-              takeScreenshots: {
-                type: 'boolean',
-                description: 'Take screenshots at each step',
-                default: false,
-              },
-              variables: {
-                type: 'object',
-                description: 'Variables to substitute in the scenario',
-              },
-            },
-            required: ['scenarioName'],
-          },
-        },
-        {
-          name: 'list_scenarios',
-          description: 'List saved scenarios',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              filter: {
-                type: 'string',
-                description: 'Filter scenarios by name or description',
-              },
-              limit: {
-                type: 'number',
-                description: 'Maximum number of scenarios to return',
-                default: 50,
-              },
-            },
-          },
-        },
-        {
-          name: 'update_scenario',
-          description: 'Update scenario',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              scenarioName: {
-                type: 'string',
-                description: 'Name of the scenario to update',
-              },
-              newName: {
-                type: 'string',
-                description: 'New name for the scenario (optional)',
-              },
-              description: {
-                type: 'string',
-                description: 'New description for the scenario (optional)',
-              },
-              steps: {
-                type: 'array',
-                items: { type: 'object' },
-                description: 'New steps for the scenario (optional)',
-              },
-              variables: {
-                type: 'object',
-                description: 'New variables for the scenario (optional)',
-              },
-            },
-            required: ['scenarioName'],
-          },
-        },
-        {
-          name: 'delete_scenario',
-          description: 'Delete scenario',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              scenarioName: {
-                type: 'string',
-                description: 'Name of the scenario to delete',
-              },
-              confirm: {
-                type: 'boolean',
-                description: 'Confirm deletion',
-                default: false,
-              },
-            },
-            required: ['scenarioName'],
-          },
-        },
-        {
-          name: 'list_elements',
-          description: 'List page elements',
+          name: 'get_window_info',
+          description: 'Get current browser window size and position information',
           inputSchema: {
             type: 'object',
             properties: {
@@ -500,120 +277,362 @@ class SimpleMCPServer {
                 type: 'string',
                 description: 'Session ID of the browser',
               },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+            },
+          },
+        },
+        {
+          name: 'set_window_size',
+          description: 'Set browser window size',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              width: {
+                type: 'number',
+                description: 'Window width in pixels',
+              },
+              height: {
+                type: 'number',
+                description: 'Window height in pixels',
+              },
+            },
+            required: ['width', 'height'],
+          },
+        },
+        {
+          name: 'set_window_position',
+          description: 'Set browser window position on screen. Useful for multi-monitor setups',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              x: {
+                type: 'number',
+                description: 'Window X position in pixels',
+              },
+              y: {
+                type: 'number',
+                description: 'Window Y position in pixels',
+              },
+              monitor: {
+                type: 'string',
+                enum: ['primary', 'secondary', 'auto'],
+                description: 'Monitor preset. primary=0,0; secondary=1920,0. x/y override this if provided',
+              },
+            },
+          },
+        },
+        {
+          name: 'get_page_debug_info',
+          description: 'Get comprehensive page debug information including URL, title, console logs, and interactive elements',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              includeConsole: {
+                type: 'boolean',
+                description: 'Include console logs. Default: true',
+              },
+              includeElements: {
+                type: 'boolean',
+                description: 'Include page elements. Default: true',
+              },
+              elementLimit: {
+                type: 'number',
+                description: 'Maximum number of elements to return. Default: 50',
+              },
+              logLimit: {
+                type: 'number',
+                description: 'Maximum number of console logs to return (0 for all logs). Default: 20',
+              },
+            },
+          },
+        },
+        {
+          name: 'get_interactive_elements',
+          description: 'Get interactive elements (buttons, inputs, links, form controls) that can be clicked or interacted with',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              elementLimit: {
+                type: 'number',
+                description: 'Maximum number of interactive elements to return. Default: 50',
+              },
+            },
+          },
+        },
+        {
+          name: 'list_elements',
+          description: 'List all page elements with optional filtering. More comprehensive than get_interactive_elements as it supports filtering by type, tag, text, and attributes',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
               filter: {
                 type: 'object',
+                description: 'Optional filter object to narrow down elements',
                 properties: {
                   type: {
                     type: 'string',
                     enum: ['button', 'input', 'link', 'form', 'select', 'any'],
+                    description: 'Filter by element type',
                   },
-                  tagName: { type: 'string' },
-                  visibleOnly: { type: 'boolean', default: true },
-                  containsText: { type: 'string' },
+                  tagName: {
+                    type: 'string',
+                    description: 'Filter by HTML tag name',
+                  },
+                  visibleOnly: {
+                    type: 'boolean',
+                    description: 'Only return visible elements. Default: true',
+                  },
+                  containsText: {
+                    type: 'string',
+                    description: 'Filter elements containing this text',
+                  },
                   hasAttribute: {
                     type: 'object',
-                    properties: { name: { type: 'string' }, value: { type: 'string' } },
+                    description: 'Filter by attribute',
+                    properties: {
+                      name: { type: 'string' },
+                      value: { type: 'string' },
+                    },
                   },
-                  cssSelector: { type: 'string' },
+                  cssSelector: {
+                    type: 'string',
+                    description: 'Filter by CSS selector',
+                  },
                 },
               },
-              limit: { type: 'number', default: 50 },
-              includeHidden: { type: 'boolean', default: false },
+              limit: {
+                type: 'number',
+                description: 'Maximum number of elements to return. Default: 50',
+              },
+              includeHidden: {
+                type: 'boolean',
+                description: 'Include hidden elements in results. Default: false',
+              },
             },
-            required: ['sessionId'],
           },
         },
         {
           name: 'check_element_exists',
-          description: 'Check if element exists',
+          description: 'Check if an element exists on the page',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: { type: 'string' },
-              selector: { type: 'string' },
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              selector: {
+                type: 'string',
+                description: 'Element selector',
+              },
               by: {
                 type: 'string',
                 enum: ['css', 'xpath', 'id', 'name', 'className', 'tagName', 'text'],
-                default: 'css',
+                description: 'Selector type. Default: css',
               },
             },
-            required: ['sessionId', 'selector'],
+            required: ['selector'],
           },
         },
         {
           name: 'find_by_description',
-          description: 'Find element by description',
+          description: 'Find element by human-readable description using AI-like matching',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: { type: 'string' },
-              description: { type: 'string' },
-              context: { type: 'string' },
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              description: {
+                type: 'string',
+                description: 'Human-readable description of the element to find',
+              },
+              context: {
+                type: 'string',
+                description: 'Optional context to help narrow down the search',
+              },
               preferredSelector: {
                 type: 'string',
                 enum: ['css', 'xpath', 'all'],
-                default: 'all',
+                description: 'Preferred selector type to return. Default: all',
               },
-              limit: { type: 'number', default: 10 },
+              limit: {
+                type: 'number',
+                description: 'Maximum number of matches to return. Default: 10',
+              },
             },
-            required: ['sessionId', 'description'],
+            required: ['description'],
           },
         },
         {
           name: 'fill_form',
-          description: 'Fill form fields',
+          description: 'Fill multiple form fields at once',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: { type: 'string' },
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
               fields: {
                 type: 'object',
+                description: 'Object mapping field names to {selector, value} objects',
                 additionalProperties: {
                   type: 'object',
-                  properties: { selector: { type: 'string' }, value: { type: 'string' } },
+                  properties: {
+                    selector: { type: 'string' },
+                    value: { type: 'string' },
+                  },
                 },
               },
-              submitAfter: { type: 'boolean', default: false },
-              submitSelector: { type: 'string' },
+              submitAfter: {
+                type: 'boolean',
+                description: 'Submit the form after filling. Default: false',
+              },
+              submitSelector: {
+                type: 'string',
+                description: 'CSS selector for the submit button (if different from default)',
+              },
             },
-            required: ['sessionId', 'fields'],
+            required: ['fields'],
           },
         },
         {
           name: 'select_option',
-          description: 'Select dropdown option',
+          description: 'Select an option from a dropdown/select element',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: { type: 'string' },
-              selector: { type: 'string' },
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              selector: {
+                type: 'string',
+                description: 'CSS selector for the select element',
+              },
               option: {
                 type: 'object',
+                description: 'Option selection criteria',
                 properties: {
-                  by: { type: 'string', enum: ['text', 'value', 'index'] },
-                  text: { type: 'string' },
-                  value: { type: 'string' },
-                  index: { type: 'number' },
+                  by: {
+                    type: 'string',
+                    enum: ['text', 'value', 'index'],
+                    description: 'How to select the option',
+                  },
+                  text: {
+                    type: 'string',
+                    description: 'Option text to match (when by=text)',
+                  },
+                  value: {
+                    type: 'string',
+                    description: 'Option value to match (when by=value)',
+                  },
+                  index: {
+                    type: 'number',
+                    description: 'Option index to select (when by=index)',
+                  },
                 },
               },
-              timeout: { type: 'number', default: 10000 },
+              timeout: {
+                type: 'number',
+                description: 'Timeout in milliseconds. Default: 10000',
+              },
             },
-            required: ['sessionId', 'selector', 'option'],
+            required: ['selector', 'option'],
           },
         },
         {
           name: 'wait_for_page_change',
-          description: 'Wait for page to change',
+          description: 'Wait for the page URL to change (useful after form submissions or navigation)',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: { type: 'string' },
-              fromUrl: { type: 'string' },
-              toUrlPattern: { type: 'string' },
-              timeout: { type: 'number', default: 10000 },
-              takeScreenshot: { type: 'boolean', default: false },
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              fromUrl: {
+                type: 'string',
+                description: 'Current URL to wait for change from',
+              },
+              toUrlPattern: {
+                type: 'string',
+                description: 'URL pattern to wait for (supports wildcards)',
+              },
+              timeout: {
+                type: 'number',
+                description: 'Timeout in milliseconds. Default: 10000',
+              },
+              takeScreenshot: {
+                type: 'boolean',
+                description: 'Take screenshot when page changes. Default: false',
+              },
             },
-            required: ['sessionId'],
           },
         },
       ];
@@ -622,12 +641,39 @@ class SimpleMCPServer {
       const plugins = this.pluginManager.getAllPlugins();
       for (const plugin of plugins) {
         for (const tool of plugin.tools) {
-          tools.push({
-            name: tool.name,
-            description: tool.description,
-            inputSchema: tool.inputSchema,
-          });
+          try {
+            // Validate and sanitize tool schema to ensure JSON serialization works
+            const sanitizedSchema = this.sanitizeToolSchema(tool.inputSchema);
+            const toolDef = {
+              name: tool.name,
+              description: tool.description,
+              inputSchema: sanitizedSchema,
+            };
+
+            // Test JSON serialization before adding
+            JSON.stringify(toolDef);
+
+            tools.push(toolDef);
+          } catch (error) {
+            this.logger.error('Failed to add plugin tool', {
+              plugin: plugin.name,
+              tool: tool.name,
+              error: error instanceof Error ? error.message : String(error)
+            });
+          }
         }
+      }
+
+      // Final validation - ensure the entire tools array can be serialized
+      try {
+        JSON.stringify(tools);
+      } catch (error) {
+        this.logger.error('Tools array serialization failed', {
+          error: error instanceof Error ? error.message : String(error),
+          toolCount: tools.length
+        });
+        // Return only built-in tools if plugin tools cause issues
+        return { tools: tools.slice(0, tools.length - (tools.length - 625)) };
       }
 
       return { tools };
@@ -635,6 +681,20 @@ class SimpleMCPServer {
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
+
+      // Log incoming tool call for debugging
+      try {
+        this.logger.debug('Handling CallTool action', {
+          toolName: name,
+          argsKeys: args ? Object.keys(args) : [],
+          argsStringified: args ? JSON.stringify(args).substring(0, 200) : 'null'
+        });
+      } catch (logError) {
+        this.logger.warn('Failed to log tool call args', {
+          toolName: name,
+          error: logError instanceof Error ? logError.message : String(logError)
+        });
+      }
 
       try {
         let result;
@@ -645,103 +705,75 @@ class SimpleMCPServer {
             break;
 
           case 'navigate_to':
-            result = await navigateToTool(args, this.getSession.bind(this), this.activeRecordings, this.logger);
+            result = await this.handleNavigateTo(args);
             break;
 
           case 'click_element':
-            result = await clickElementTool(args, this.getSession.bind(this), this.findElementBySelector.bind(this), this.activeRecordings, this.logger);
+            result = await this.handleClickElement(args);
             break;
 
           case 'type_text':
-            result = await typeTextTool(args, this.getSession.bind(this), this.findElementBySelector.bind(this), this.activeRecordings, this.logger);
+            result = await this.handleTypeText(args);
             break;
 
           case 'take_screenshot':
-            result = await takeScreenshotTool(args, this.getSession.bind(this), this.activeRecordings, this.logger, this.scenarioStoragePath);
+            result = await this.handleTakeScreenshot(args);
             break;
 
           case 'execute_script':
-            result = await executeScriptTool(args, this.getSession.bind(this), this.activeRecordings, this.logger);
+            result = await this.handleExecuteScript(args);
             break;
 
           case 'close_browser':
-            result = await closeBrowserTool(args, this.getSession.bind(this), this.browserSessions, this.logger);
+            result = await closeBrowserTool(args, this.getSession.bind(this), this.browserSessions, this.logger, this.getSessionByBrowserId.bind(this));
             break;
 
-          case 'debug_page':
-            result = await debugPageStateTool(args, this.getSession.bind(this), this.logger);
+          case 'list_browsers':
+            result = await this.listBrowsers();
             break;
 
-          case 'start_recording':
-            result = { success: false, message: 'Deprecated. Use record_scenario instead.' };
+          case 'get_window_info':
+            result = await this.getWindowInfo(args);
             break;
 
-          case 'stop_recording':
-            result = { success: false, message: 'Deprecated. Use stop_recording_scenario instead.' };
+          case 'set_window_size':
+            result = await this.setWindowSize(args);
             break;
 
-          case 'play_recording':
-            result = { success: false, message: 'Deprecated. Use replay_scenario instead.' };
-            break;
-
-          case 'get_recordings':
-            result = { success: false, message: 'Deprecated. Use list_scenarios instead.' };
+          case 'set_window_position':
+            result = await this.setWindowPosition(args);
             break;
 
           case 'get_page_debug_info':
-            result = await getPageDebugInfoTool(args, this.getSession.bind(this), (args: any) => getInteractiveElementsTool(args, this.getSession.bind(this), this.logger), this.logger);
+            result = await this.handleGetPageDebugInfo(args);
             break;
 
           case 'get_interactive_elements':
-            result = await getInteractiveElementsTool(args, this.getSession.bind(this), this.logger);
-            break;
-
-          case 'record_scenario':
-            result = await recordScenarioTool(args, this.getSession.bind(this), this.activeRecordings, this.scenarios, this.logger);
-            break;
-
-          case 'stop_recording_scenario':
-            result = await stopRecordingScenarioTool(args, this.scenarios, this.activeRecordings, this.scenarioStoragePath, this.logger);
-            break;
-
-          case 'replay_scenario':
-            result = await this.replayScenario(args);
-            break;
-
-          case 'list_scenarios':
-            result = await listScenariosTool(args, this.scenarios);
-            break;
-
-          case 'update_scenario':
-            result = await updateScenarioTool(args, this.scenarios, this.scenarioStoragePath, this.logger);
-            break;
-
-          case 'delete_scenario':
-            result = await deleteScenarioTool(args, this.scenarios, this.scenarioStoragePath, this.logger);
+            result = await this.handleGetInteractiveElements(args);
             break;
 
           case 'list_elements':
-            result = await this.listElements(args);
+            result = await this.handleListElements(args);
             break;
 
           case 'check_element_exists':
-            result = await this.checkElementExists(args);
+            result = await this.handleCheckElementExists(args);
             break;
 
           case 'find_by_description':
-            result = await this.findByDescription(args);
+            result = await this.handleFindByDescription(args);
             break;
 
           case 'fill_form':
-            result = await this.fillForm(args);
+            result = await this.handleFillForm(args);
             break;
 
           case 'select_option':
-            result = await this.selectOption(args);
+            result = await this.handleSelectOption(args);
             break;
 
           case 'wait_for_page_change':
-            result = await this.waitForPageChange(args);
+            result = await this.handleWaitForPageChange(args);
             break;
 
           default:
@@ -749,7 +781,12 @@ class SimpleMCPServer {
             const pluginTool = this.findPluginTool(name);
             if (pluginTool) {
               try {
-                result = await this.pluginManager.executeTool(pluginTool.pluginName, pluginTool.toolName, args || {});
+                // Pass context to plugin (getSession function)
+                const context = {
+                  getSession: this.getSession.bind(this),
+                  browserSessions: this.browserSessions,
+                };
+                result = await this.pluginManager.executeTool(pluginTool.pluginName, pluginTool.toolName, args || {}, context);
               } catch (error) {
                 result = {
                   success: false,
@@ -764,20 +801,55 @@ class SimpleMCPServer {
             }
         }
 
+        // Log successful tool execution
+        this.logger.debug('Tool execution completed', {
+          toolName: name,
+          success: result && typeof result === 'object' && 'success' in result ? result.success : true
+        });
+
+        // Plugin tools return { content: Array<{ type: string; text: string }> } format
+        if (result && typeof result === 'object' && 'content' in result && Array.isArray(result.content)) {
+          return result;
+        }
+
+        // Built-in tools return { success: boolean, message: string, data?: any } format
+        let responseText: string;
+        try {
+          responseText = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+        } catch (jsonError) {
+          this.logger.error('Failed to stringify tool result', {
+            toolName: name,
+            error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+            resultType: typeof result
+          });
+          responseText = `Error serializing result: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`;
+        }
+
         return {
           content: [
             {
               type: 'text',
-              text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+              text: responseText,
             },
           ],
         };
       } catch (error) {
+        // Enhanced error logging
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        this.logger.error('Tool execution error', {
+          toolName: name,
+          error: errorMessage,
+          stack: errorStack,
+          args: args ? JSON.stringify(args).substring(0, 500) : 'null'
+        });
+
         return {
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              text: `Error: ${errorMessage}`,
             },
           ],
         };
@@ -809,6 +881,15 @@ class SimpleMCPServer {
         session.lastUsed = new Date();
         return session;
       }
+    }
+    return null;
+  }
+
+  private getSessionByBrowserId(browserId: string): BrowserSession | null {
+    const session = this.browserSessions.get(browserId);
+    if (session && session.isActive) {
+      session.lastUsed = new Date();
+      return session;
     }
     return null;
   }
@@ -869,20 +950,15 @@ class SimpleMCPServer {
   private async injectBadge(driver: WebDriver) {
     const result = await driver.executeScript(`
       try {
-        console.log('Starting badge injection...');
-        
         // Get badge text with fallback
         let badgeText = 'RIDER'; // Default fallback
         try {
           badgeText = localStorage.getItem('mcp-debug-badge') || 'RIDER';
-          console.log('Badge text from localStorage:', badgeText);
         } catch (e) {
-          console.log('localStorage not available, using fallback');
           badgeText = 'RIDER';
         }
         
         if (!badgeText) {
-          console.log('No badge text found, skipping injection');
           return { success: false, reason: 'No badge text' };
         }
 
@@ -890,7 +966,6 @@ class SimpleMCPServer {
         const existingBadge = document.getElementById('mcp-debug-badge');
         if (existingBadge) {
           existingBadge.remove();
-          console.log('Removed existing badge');
         }
 
         // Create debug badge
@@ -921,8 +996,6 @@ class SimpleMCPServer {
           animation: pulse 2s infinite;
         \`;
         
-        console.log('Created badge element with text:', badgeText);
-        
         // Add pulse animation
         if (!document.getElementById('mcp-badge-styles')) {
           const style = document.createElement('style');
@@ -935,20 +1008,16 @@ class SimpleMCPServer {
             }
           \`;
           document.head.appendChild(style);
-          console.log('Added pulse animation styles');
         }
         
         // Add to body
         if (document.body) {
           document.body.appendChild(badge);
-          console.log('Badge added to body successfully');
         } else {
-          console.log('Body not ready, waiting for DOMContentLoaded');
           // Wait for body to be ready
           document.addEventListener('DOMContentLoaded', function() {
             if (document.body) {
               document.body.appendChild(badge);
-              console.log('Badge added to body after DOMContentLoaded');
             }
           });
         }
@@ -956,14 +1025,12 @@ class SimpleMCPServer {
         // Try to re-store badge text
         try {
           localStorage.setItem('mcp-debug-badge', badgeText);
-          console.log('Badge text stored in localStorage');
         } catch (e) {
-          console.log('Could not store in localStorage');
+          // Silently fail
         }
         
         return { success: true, badgeText: badgeText };
       } catch (e) {
-        console.error('Badge injection error:', e);
         return { success: false, error: e.message };
       }
     `);
@@ -977,10 +1044,6 @@ class SimpleMCPServer {
     const session = await this.getSession(sessionId);
     if (!session) return { success: false, message: `Session '${sessionId}' not found` };
     try {
-      if (this.activeRecordings.has(session.sessionId)) {
-        const recording = this.activeRecordings.get(session.sessionId);
-        recording?.steps.push({ action: 'execute_script', script, args: scriptArgs, timestamp: Date.now() });
-      }
       const result = await session.driver.executeScript(script, ...scriptArgs);
       this.logger.info('Script executed', { sessionId, script: script ? script.substring(0, 100) + '...' : '[EMPTY SCRIPT]' });
       return { success: true, message: 'Script executed successfully', data: { result } };
@@ -1392,179 +1455,345 @@ class SimpleMCPServer {
   }
 
 
-  private async replayScenario(args: any) {
-    const { scenarioName, sessionId: userSessionId, fastMode = false, stopOnError = false, skipScreenshots = true, takeScreenshots = false, variables = {} } = args;
-    const scenario = this.scenarios.get(scenarioName) || Array.from(this.scenarios.values()).find(s => s.name === scenarioName);
-
-    if (!scenario) {
-      return { success: false, message: `Scenario '${scenarioName}' not found` };
+  /**
+   * Helper to resolve session from either sessionId or browserId
+   * This ensures all tools can work with both identifiers consistently
+   */
+  private async resolveSession(args: { sessionId?: string; browserId?: string }): Promise<BrowserSession | null> {
+    if (args.browserId) {
+      const session = this.getSessionByBrowserId(args.browserId);
+      if (session) return session;
     }
+    if (args.sessionId) {
+      return await this.getSession(args.sessionId);
+    }
+    return null;
+  }
 
-    let session = userSessionId ? await this.getSession(userSessionId) : null;
+  // Wrapper methods to support both sessionId and browserId consistently
+  private async handleNavigateTo(args: any) {
+    const session = await this.resolveSession(args);
     if (!session) {
-      // If no session provided or found, create a new one
-      const newBrowserId = `replay-${scenario.scenarioId}-${Date.now()}`;
-      const openBrowserResult = await openBrowserTool({ browserId: newBrowserId, headless: true }, this.browserSessions, this.chromeDriverManager, this.logger, this.setBadge.bind(this));
-      if (!openBrowserResult.success || !openBrowserResult.data?.sessionId) {
-        return { success: false, message: `Failed to open browser for replay: ${openBrowserResult.message}` };
-      }
-      session = await this.getSession(openBrowserResult.data.sessionId);
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
     }
+    return await navigateToTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+  }
 
-    if (!session) return { success: false, message: `Failed to acquire or create session for replay.` };
-
-    const executedSteps: any[] = [];
-    const failedSteps: any[] = [];
-    const screenshots: string[] = [];
-    let currentUrl = '';
-    const startTime = Date.now();
-
-    const substitute = (value: string | undefined | null) => {
-      let substitutedValue = value === undefined || value === null ? '' : value;
-      for (const [key, val] of Object.entries(scenario.variables || {})) {
-        substitutedValue = substitutedValue.replace(new RegExp(`{{${key}}}`, 'g'), String(val));
-      }
-      for (const [key, val] of Object.entries(variables)) {
-        substitutedValue = substitutedValue.replace(new RegExp(`{{${key}}}`, 'g'), String(val));
-      }
-      return substitutedValue;
-    };
-
-    for (const [index, step] of scenario.steps.entries()) {
-      try {
-        if (!fastMode && index > 0) {
-          await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
-        }
-
-        let stepResult: any = { success: false, message: '' };
-        let resolvedSelector = step.selector ? substitute(step.selector) : undefined;
-        let resolvedValue = step.value ? substitute(step.value) : undefined;
-        let resolvedUrl = step.url ? substitute(step.url) : undefined;
-        let resolvedScript = step.script ? substitute(step.script) : undefined;
-        let resolvedArgs = step.args ? step.args.map(arg => substitute(arg)) : undefined;
-
-        switch (step.action) {
-          case 'navigate':
-            if (resolvedUrl) {
-              stepResult = await navigateToTool({ sessionId: session.sessionId, url: resolvedUrl }, this.getSession.bind(this), this.activeRecordings, this.logger);
-            }
-            break;
-          case 'click':
-            if (resolvedSelector) {
-              stepResult = await clickElementTool({ sessionId: session.sessionId, selector: resolvedSelector, by: step.by }, this.getSession.bind(this), this.findElementBySelector.bind(this), this.activeRecordings, this.logger);
-            }
-            break;
-          case 'type':
-            if (resolvedSelector && resolvedValue !== undefined) {
-              stepResult = await typeTextTool({ sessionId: session.sessionId, selector: resolvedSelector, text: resolvedValue, by: step.by }, this.getSession.bind(this), this.findElementBySelector.bind(this), this.activeRecordings, this.logger);
-            }
-            break;
-          case 'wait':
-            // Implement wait logic, e.g., wait for a certain element or URL pattern
-            this.logger.warn('Wait action not fully implemented in replay. Skipping.', { step });
-            stepResult = { success: true, message: 'Wait action skipped (not fully implemented)' };
-            break;
-          case 'wait_for_page_change':
-            stepResult = await this.waitForPageChange({ sessionId: session.sessionId, toUrlPattern: step.pattern, timeout: step.timeout });
-            break;
-          case 'screenshot':
-            if (takeScreenshots && !skipScreenshots) {
-              const screenshotFilename = `replay_step_${index + 1}_${Date.now()}.png`;
-              stepResult = await takeScreenshotTool({ sessionId: session.sessionId, filename: screenshotFilename }, this.getSession.bind(this), this.activeRecordings, this.logger, this.scenarioStoragePath);
-              if (stepResult.success && stepResult.data?.image) {
-                screenshots.push(stepResult.data.image);
-              }
-            } else {
-              stepResult = { success: true, message: 'Screenshot skipped' };
-            }
-            break;
-          case 'fill_form':
-            if (step.fields) {
-              const resolvedFields: Record<string, { selector: string; value: string }> = {};
-              for (const fieldName in step.fields) {
-                const field = step.fields[fieldName];
-                resolvedFields[fieldName] = { selector: substitute(field.selector), value: substitute(field.value) };
-              }
-              stepResult = await this.fillForm({ sessionId: session.sessionId, fields: resolvedFields, submitAfter: (step as any).submitAfter, submitSelector: (step as any).submitSelector });
-            }
-            break;
-          case 'select_option':
-            if (resolvedSelector && step.option) {
-              const resolvedOption = { ...step.option };
-              if (resolvedOption.text) resolvedOption.text = substitute(resolvedOption.text);
-              if (resolvedOption.value) resolvedOption.value = substitute(resolvedOption.value);
-              stepResult = await this.selectOption({ sessionId: session.sessionId, selector: resolvedSelector, option: resolvedOption, timeout: step.timeout });
-            }
-            break;
-          case 'execute_script':
-            if (resolvedScript) {
-              stepResult = await this.executeScript({ sessionId: session.sessionId, script: resolvedScript, args: resolvedArgs });
-            }
-            break;
-          default:
-            this.logger.warn('Unknown scenario step action', { action: step.action });
-            stepResult = { success: false, message: `Unknown action: ${step.action}` };
-        }
-
-        if (!stepResult.success) {
-          failedSteps.push({ step: index + 1, action: step.action, error: stepResult.message });
-          if (stopOnError) throw new Error(`Replay stopped on error at step ${index + 1}: ${stepResult.message}`);
-        }
-        executedSteps.push({ step: index + 1, action: step.action, success: stepResult.success, message: stepResult.message });
-        currentUrl = await session.driver.getCurrentUrl(); // Update current URL after each step
-      } catch (error: any) {
-        failedSteps.push({ step: index + 1, action: step.action, error: error.message });
-        if (stopOnError) throw new Error(`Replay stopped unexpectedly at step ${index + 1}: ${error.message}`);
-      }
+  private async handleClickElement(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
     }
+    return await clickElementTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.findElementBySelector.bind(this), this.logger);
+  }
 
-    const duration = (Date.now() - startTime) / 1000;
-    this.logger.info('Scenario replay finished', { scenarioName, totalSteps: scenario.steps.length, executedSteps: executedSteps.length - failedSteps.length, failedSteps: failedSteps.length, duration });
-
-    if (session && !userSessionId) {
-      // If a new session was created for replay, close it
-      await closeBrowserTool({ sessionId: session.sessionId }, this.getSession.bind(this), this.browserSessions, this.logger);
+  private async handleTypeText(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
     }
+    return await typeTextTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.findElementBySelector.bind(this), this.logger);
+  }
 
+  private async handleTakeScreenshot(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+    return await takeScreenshotTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+  }
+
+  private async handleExecuteScript(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+    return await executeScriptTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+  }
+
+  private async handleGetPageDebugInfo(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+    return await getPageDebugInfoTool(
+      { ...args, sessionId: session.sessionId },
+      this.getSession.bind(this),
+      (args: any) => getInteractiveElementsTool(args, this.getSession.bind(this), this.logger),
+      this.logger
+    );
+  }
+
+  private async handleGetInteractiveElements(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+    return await getInteractiveElementsTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+  }
+
+
+  private async handleListElements(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+    return await this.listElements({ ...args, sessionId: session.sessionId });
+  }
+
+  private async handleCheckElementExists(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+    return await this.checkElementExists({ ...args, sessionId: session.sessionId });
+  }
+
+  private async handleFindByDescription(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+    return await this.findByDescription({ ...args, sessionId: session.sessionId });
+  }
+
+  private async handleFillForm(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+    return await this.fillForm({ ...args, sessionId: session.sessionId });
+  }
+
+  private async handleSelectOption(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+    return await this.selectOption({ ...args, sessionId: session.sessionId });
+  }
+
+  private async handleWaitForPageChange(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+    return await this.waitForPageChange({ ...args, sessionId: session.sessionId });
+  }
+
+  private async listBrowsers() {
+    const browsers = Array.from(this.browserSessions.values()).map(session => ({
+      browserId: session.browserId,
+      sessionId: session.sessionId,
+      isActive: session.isActive,
+      createdAt: session.createdAt.toISOString(),
+      lastUsed: session.lastUsed.toISOString(),
+    }));
+
+    this.logger.info('Listed browsers', { count: browsers.length });
     return {
-      success: failedSteps.length === 0,
-      message: failedSteps.length === 0 ? 'Scenario replayed successfully' : `Scenario replayed with ${failedSteps.length} errors`,
-      data: {
-        scenarioName,
-        totalSteps: scenario.steps.length,
-        executedSteps: executedSteps.length - failedSteps.length,
-        failedSteps: failedSteps.length,
-        duration,
-        finalUrl: currentUrl,
-        errors: failedSteps,
-        screenshots: screenshots,
-      },
+      success: true,
+      message: `Found ${browsers.length} active browser instance(s)`,
+      data: { browsers, count: browsers.length },
     };
   }
 
+  private async getWindowInfo(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+
+    try {
+      const size = await session.driver.manage().window().getSize();
+      const position = await session.driver.manage().window().getPosition();
+      const rect = await session.driver.manage().window().getRect();
+
+      const windowInfo = {
+        browserId: session.browserId,
+        sessionId: session.sessionId,
+        size: {
+          width: size.width,
+          height: size.height,
+        },
+        position: {
+          x: position.x,
+          y: position.y,
+        },
+        rect: {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        },
+      };
+
+      this.logger.info('Window info retrieved', { browserId: session.browserId, windowInfo });
+      return {
+        success: true,
+        message: 'Window info retrieved successfully',
+        data: windowInfo,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get window info', {
+        browserId: session.browserId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        success: false,
+        message: `Failed to get window info: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  private async setWindowSize(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+
+    const { width, height } = args;
+    if (!width || !height) {
+      return {
+        success: false,
+        message: 'Width and height are required',
+      };
+    }
+
+    try {
+      await session.driver.manage().window().setSize(width, height);
+      this.logger.info('Window size set', { browserId: session.browserId, width, height });
+      return {
+        success: true,
+        message: `Window size set to ${width}x${height}`,
+        data: { width, height },
+      };
+    } catch (error) {
+      this.logger.error('Failed to set window size', {
+        browserId: session.browserId,
+        width,
+        height,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        success: false,
+        message: `Failed to set window size: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  private async setWindowPosition(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+    }
+
+    const { x, y, monitor } = args;
+    let finalX = x;
+    let finalY = y;
+
+    // Use monitor preset if x/y not provided
+    if (finalX === undefined || finalY === undefined) {
+      if (monitor) {
+        const monitorPos = this.getMonitorPosition(monitor);
+        finalX = monitorPos.x;
+        finalY = monitorPos.y;
+      } else {
+        return {
+          success: false,
+          message: 'Either x/y coordinates or monitor preset must be provided',
+        };
+      }
+    }
+
+    try {
+      await session.driver.manage().window().setPosition(finalX, finalY);
+      this.logger.info('Window position set', {
+        browserId: session.browserId,
+        x: finalX,
+        y: finalY,
+        monitor: monitor || 'custom',
+      });
+      return {
+        success: true,
+        message: `Window position set to (${finalX}, ${finalY})`,
+        data: { x: finalX, y: finalY, monitor: monitor || null },
+      };
+    } catch (error) {
+      this.logger.error('Failed to set window position', {
+        browserId: session.browserId,
+        x,
+        y,
+        monitor,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        success: false,
+        message: `Failed to set window position: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  private getMonitorPosition(monitor: string): { x: number; y: number } {
+    switch (monitor) {
+      case 'primary':
+        return { x: 0, y: 0 };
+      case 'secondary':
+        return { x: 1920, y: 0 }; // Assuming 1920px width for primary monitor
+      case 'auto':
+      default:
+        return { x: 0, y: 0 };
+    }
+  }
 
   async run() {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    console.error('Simple Browser MCP Server running on stdio');
+    try {
+      const transport = new StdioServerTransport();
+      await this.server.connect(transport);
+      this.logger.info('MCP Selenium Server running on stdio');
+
+      // Add error handlers
+      process.on('uncaughtException', (error) => {
+        this.logger.error('Uncaught exception', {
+          error: error.message,
+          stack: error.stack
+        });
+      });
+
+      process.on('unhandledRejection', (reason, promise) => {
+        this.logger.error('Unhandled rejection', {
+          reason: reason instanceof Error ? reason.message : String(reason),
+          stack: reason instanceof Error ? reason.stack : undefined
+        });
+      });
+    } catch (error) {
+      this.logger.error('Failed to start server', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error;
+    }
   }
 
-  private async loadExistingScenarios() {
-    this.logger.info('Loading existing scenarios...', { path: this.scenarioStoragePath });
+
+  private sanitizeToolSchema(schema: any): any {
     try {
-      const files = await fs.promises.readdir(this.scenarioStoragePath);
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          const filePath = path.join(this.scenarioStoragePath, file);
-          const content = await fs.promises.readFile(filePath, 'utf-8');
-          const scenario: Scenario = JSON.parse(content);
-          this.scenarios.set(scenario.scenarioId, scenario);
-          this.logger.debug('Loaded scenario:', { name: scenario.name, id: scenario.scenarioId });
-        }
+      const sanitized = JSON.parse(JSON.stringify(schema));
+
+      // Ensure basic structure
+      if (!sanitized.type) sanitized.type = 'object';
+      if (!sanitized.required) sanitized.required = [];
+      if (!sanitized.properties) sanitized.properties = {};
+
+      // Remove default values (they cause serialization issues)
+      for (const propName in sanitized.properties) {
+        const prop = sanitized.properties[propName];
+        if ('default' in prop) delete prop.default;
       }
-      this.logger.info(`Loaded ${this.scenarios.size} scenarios.`);
+
+      return sanitized;
     } catch (error) {
-      this.logger.error('Error loading scenarios:', { error: error instanceof Error ? error.message : String(error) });
+      return { type: 'object', properties: {}, required: [] };
     }
   }
 
@@ -1580,18 +1809,8 @@ class SimpleMCPServer {
     return null;
   }
 
-  private async saveScenario(scenario: Scenario) {
-    try {
-      const filePath = path.join(this.scenarioStoragePath, `${scenario.scenarioId}.json`);
-      await fs.promises.writeFile(filePath, JSON.stringify(scenario, null, 2), 'utf-8');
-      this.logger.info('Scenario saved:', { name: scenario.name, id: scenario.scenarioId, path: filePath });
-    } catch (error) {
-      this.logger.error('Error saving scenario:', { name: scenario.name, error: error instanceof Error ? error.message : String(error) });
-      throw new Error(`Failed to save scenario ${scenario.name}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
 }
 
 // Run the server
-const server = new SimpleMCPServer();
+const server = new MCPSeleniumServer();
 server.run().catch(console.error);
