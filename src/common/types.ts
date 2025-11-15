@@ -7,6 +7,7 @@ export interface BrowserSession {
   createdAt: Date;
   lastUsed: Date;
   isActive: boolean;
+  badge?: string; // Store badge text to persist across navigations - identifies what Cursor is doing
 }
 
 // Enhanced Scenario interface with variable substitution

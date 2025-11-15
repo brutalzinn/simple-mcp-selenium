@@ -26,17 +26,14 @@ export async function closeBrowserTool(
         session = await getSession(sessionId);
     }
 
-    if (!session) {
-        const identifier = browserId || sessionId;
-        return { success: false, message: `Browser not found. browserId: ${browserId || 'not provided'}, sessionId: ${sessionId || 'not provided'}` };
-    }
+    if (!session) return { success: false, message: 'Browser not found' };
 
     try {
         await session.driver.quit();
         session.isActive = false;
         browserSessions.delete(session.browserId);
-        return { success: true, message: 'Browser closed', data: { browserId: session.browserId, sessionId: session.sessionId } };
+        return { success: true };
     } catch (error) {
-        return { success: false, message: `Error: ${error instanceof Error ? error.message : String(error)}` };
+        return { success: false, message: error instanceof Error ? error.message : String(error) };
     }
 }

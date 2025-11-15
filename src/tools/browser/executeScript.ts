@@ -7,12 +7,20 @@ export async function executeScriptTool(
     logger: Logger
 ) {
     const { sessionId, script, args: scriptArgs = [] } = args;
+    
+    if (!script || typeof script !== 'string' || script.trim().length === 0) {
+        return { success: false, message: 'Script required' };
+    }
+    
     const session = await getSession(sessionId);
-    if (!session) return { success: false, message: `Session '${sessionId}' not found` };
+    if (!session) return { success: false, message: 'Session not found' };
+    
     try {
         const result = await session.driver.executeScript(script, ...scriptArgs);
-        return { success: true, message: 'Script executed', data: { result } };
+        return { success: true, data: { result } };
     } catch (error) {
-        return { success: false, message: `Error: ${error instanceof Error ? error.message : String(error)}` };
+        const msg = error instanceof Error ? error.message : String(error);
+        logger.error('Script failed', { sessionId, error: msg });
+        return { success: false, message: msg };
     }
 }

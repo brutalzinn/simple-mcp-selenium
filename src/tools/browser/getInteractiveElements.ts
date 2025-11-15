@@ -123,16 +123,9 @@ export async function getInteractiveElementsTool(
     `, elementLimit);
 
     const result = data as { count: number; total: number; elements: any[] };
-    return {
-      success: true,
-      message: `Found ${result.count} elements`,
-      data: result
-    };
+    return { success: true, data: result };
   } catch (error) {
-    return {
-      success: false,
-      message: `Error: ${error instanceof Error ? error.message : String(error)}`,
-    };
+    return { success: false, message: error instanceof Error ? error.message : String(error) };
   }
 }
 

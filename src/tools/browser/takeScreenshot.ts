@@ -10,20 +10,19 @@ export async function takeScreenshotTool(
 ) {
     const { sessionId, filename } = args;
     const session = await getSession(sessionId);
-    if (!session) return { success: false, message: `Session '${sessionId}' not found` };
+    if (!session) return { success: false, message: 'Session not found' };
     try {
         const image = await session.driver.takeScreenshot();
-        let filePath = '';
-        if (filename) {
-            const saveDir = path.join(process.cwd(), 'screenshots');
-            if (!fs.existsSync(saveDir)) {
-                fs.mkdirSync(saveDir, { recursive: true });
-            }
-            filePath = path.join(saveDir, filename);
-            await fs.promises.writeFile(filePath, image, 'base64');
-        }
-        return { success: true, message: 'Screenshot taken', data: { image: filename ? undefined : image, filePath } };
+        const screenshotsDir = path.join(process.cwd(), 'screenshots');
+        if (!fs.existsSync(screenshotsDir)) fs.mkdirSync(screenshotsDir, { recursive: true });
+        
+        const filePath = filename 
+            ? path.join(screenshotsDir, filename)
+            : path.join(screenshotsDir, `screenshot-${Date.now()}.png`);
+        await fs.promises.writeFile(filePath, image, 'base64');
+        
+        return { success: true, data: { filePath: path.relative(process.cwd(), filePath) } };
     } catch (error) {
-        return { success: false, message: `Error: ${error instanceof Error ? error.message : String(error)}` };
+        return { success: false, message: error instanceof Error ? error.message : String(error) };
     }
 }

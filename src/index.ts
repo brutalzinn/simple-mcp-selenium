@@ -20,6 +20,7 @@ import { executeScriptTool } from './tools/browser/executeScript.js';
 import { closeBrowserTool } from './tools/browser/closeBrowser.js';
 import { getPageDebugInfoTool } from './tools/browser/getPageDebugInfo.js';
 import { getInteractiveElementsTool } from './tools/browser/getInteractiveElements.js';
+import { getPageElementsMarkdownTool } from './tools/browser/getPageElementsMarkdown.js';
 import { PluginManager } from './utils/pluginManager.js';
 import { MCPPlugin } from './types/plugin.js';
 import { fileURLToPath } from 'url';
@@ -342,7 +343,7 @@ class MCPSeleniumServer {
         },
         {
           name: 'get_page_debug_info',
-          description: 'Get comprehensive page debug information including URL, title, console logs, and interactive elements',
+          description: 'Get comprehensive page debug information including URL, title, console logs, network logs, performance metrics, and interactive elements. Provides everything the browser developer console offers for autonomous error detection and debugging.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -356,7 +357,15 @@ class MCPSeleniumServer {
               },
               includeConsole: {
                 type: 'boolean',
-                description: 'Include console logs. Default: true',
+                description: 'Include browser console logs (console.log, console.error, console.warn, etc.). Default: true',
+              },
+              includeNetwork: {
+                type: 'boolean',
+                description: 'Include network logs (fetch, XHR, WebSocket requests). Default: true',
+              },
+              includePerformance: {
+                type: 'boolean',
+                description: 'Include performance metrics (load time, paint metrics, resource loading). Default: true',
               },
               includeElements: {
                 type: 'boolean',
@@ -369,6 +378,10 @@ class MCPSeleniumServer {
               logLimit: {
                 type: 'number',
                 description: 'Maximum number of console logs to return (0 for all logs). Default: 20',
+              },
+              networkLimit: {
+                type: 'number',
+                description: 'Maximum number of network requests to return. Default: 50',
               },
             },
           },
@@ -635,6 +648,53 @@ class MCPSeleniumServer {
             },
           },
         },
+        {
+          name: 'set_badge',
+          description: 'Set or update the debug badge text displayed on the page. Can be called at any time to change the badge. Pass empty string to remove badge.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              badge: {
+                type: 'string',
+                description: 'Badge text to display. Pass empty string to remove badge.',
+              },
+            },
+            required: ['badge'],
+          },
+        },
+        {
+          name: 'get_page_elements_markdown',
+          description: 'Get all page elements formatted as simple markdown that Cursor can understand. Returns a structured markdown document with all elements, their selectors, properties, and interaction capabilities. Perfect for autonomous element discovery and management.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              includeHidden: {
+                type: 'boolean',
+                description: 'Include hidden elements. Default: false',
+              },
+              elementLimit: {
+                type: 'number',
+                description: 'Maximum number of elements to return. Default: 100',
+              },
+            },
+          },
+        },
       ];
 
       // Add plugin tools
@@ -776,6 +836,14 @@ class MCPSeleniumServer {
             result = await this.handleWaitForPageChange(args);
             break;
 
+          case 'set_badge':
+            result = await this.handleSetBadge(args);
+            break;
+
+          case 'get_page_elements_markdown':
+            result = await this.handleGetPageElementsMarkdown(args);
+            break;
+
           default:
             // Check if it's a plugin tool
             const pluginTool = this.findPluginTool(name);
@@ -897,53 +965,22 @@ class MCPSeleniumServer {
   private async setBadge(args: any) {
     const { sessionId, badge } = args;
     const session = await this.getSession(sessionId);
-
-    if (!session) {
-      return {
-        success: false,
-        message: `Session '${sessionId}' not found`,
-      };
-    }
+    if (!session) return { success: false, message: 'Session not found' };
 
     try {
       if (badge && badge.trim()) {
-        // Set or update badge
-        await session.driver.executeScript(`
-          localStorage.setItem('mcp-debug-badge', '${badge.trim()}');
-        `);
+        const badgeText = badge.trim();
+        session.badge = badgeText;
+        await session.driver.executeScript(`localStorage.setItem('mcp-debug-badge', '${badgeText}');`);
         await this.injectBadge(session.driver);
-
-        this.logger.info('Badge set successfully', { sessionId, badge: badge.trim() });
-
-        return {
-          success: true,
-          message: `Badge set to: "${badge.trim()}"`,
-          data: { badge: badge.trim() },
-        };
+        return { success: true };
       } else {
-        // Remove badge
-        await session.driver.executeScript(`
-          localStorage.removeItem('mcp-debug-badge');
-          const existingBadge = document.getElementById('mcp-debug-badge');
-          if (existingBadge) {
-            existingBadge.remove();
-          }
-        `);
-
-        this.logger.info('Badge removed successfully', { sessionId });
-
-        return {
-          success: true,
-          message: 'Badge removed',
-          data: { badge: null },
-        };
+        session.badge = undefined;
+        await session.driver.executeScript(`localStorage.removeItem('mcp-debug-badge');const e=document.getElementById('mcp-debug-badge');if(e)e.remove();`);
+        return { success: true };
       }
     } catch (error) {
-      this.logger.error('Set badge failed', { sessionId, error: error instanceof Error ? error.message : String(error) });
-      return {
-        success: false,
-        message: `Failed to set badge: ${error instanceof Error ? error.message : String(error)}`,
-      };
+      return { success: false, message: error instanceof Error ? error.message : String(error) };
     }
   }
 
@@ -1029,6 +1066,85 @@ class MCPSeleniumServer {
           // Silently fail
         }
         
+        // Set up automatic re-injection on every page load/navigation
+        // This ensures badge persists across all navigations to identify Cursor's actions
+        if (!window.mcpBadgeObserverSetup) {
+          window.mcpBadgeObserverSetup = true;
+          
+          // Function to re-inject badge from localStorage
+          function reInjectBadge() {
+            try {
+              const storedBadge = localStorage.getItem('mcp-debug-badge');
+              if (storedBadge && !document.getElementById('mcp-debug-badge')) {
+                // Badge exists in storage but not on page, re-inject
+                const badgeEl = document.createElement('div');
+                badgeEl.id = 'mcp-debug-badge';
+                badgeEl.textContent = storedBadge;
+                badgeEl.style.cssText = \`
+                  position: fixed;
+                  top: 0;
+                  right: 0;
+                  background: #ff4444;
+                  color: white;
+                  padding: 4px 20px;
+                  font-family: 'Courier New', monospace;
+                  font-size: 9px;
+                  font-weight: bold;
+                  z-index: 999999;
+                  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+                  text-transform: uppercase;
+                  letter-spacing: 0.5px;
+                  user-select: none;
+                  pointer-events: none;
+                  transform: rotate(45deg) translate(15px, -3px);
+                  transform-origin: center;
+                  border: 1px solid #cc0000;
+                  min-width: 60px;
+                  text-align: center;
+                  animation: pulse 2s infinite;
+                \`;
+                if (document.body) {
+                  document.body.appendChild(badgeEl);
+                }
+              }
+            } catch (e) {
+              // Ignore errors
+            }
+          }
+          
+          // Re-inject on DOMContentLoaded
+          document.addEventListener('DOMContentLoaded', reInjectBadge);
+          
+          // Re-inject immediately if DOM is already loaded
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', reInjectBadge);
+          } else {
+            reInjectBadge();
+          }
+          
+          // Watch for dynamic content changes (SPA navigation)
+          if (document.body) {
+            const observer = new MutationObserver(function(mutations) {
+              if (!document.getElementById('mcp-debug-badge')) {
+                reInjectBadge();
+              }
+            });
+            
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true
+            });
+          }
+          
+          // Also re-inject on popstate (back/forward navigation)
+          window.addEventListener('popstate', reInjectBadge);
+          
+          // Re-inject after delays to catch late-loading pages
+          setTimeout(reInjectBadge, 100);
+          setTimeout(reInjectBadge, 500);
+          setTimeout(reInjectBadge, 1000);
+        }
+        
         return { success: true, badgeText: badgeText };
       } catch (e) {
         return { success: false, error: e.message };
@@ -1042,7 +1158,7 @@ class MCPSeleniumServer {
   private async executeScript(args: any) {
     const { sessionId, script, args: scriptArgs = [] } = args;
     const session = await this.getSession(sessionId);
-    if (!session) return { success: false, message: `Session '${sessionId}' not found` };
+    if (!session) return { success: false, message: 'Session not found' };
     try {
       const result = await session.driver.executeScript(script, ...scriptArgs);
       this.logger.info('Script executed', { sessionId, script: script ? script.substring(0, 100) + '...' : '[EMPTY SCRIPT]' });
@@ -1056,7 +1172,7 @@ class MCPSeleniumServer {
   private async listElements(args: any) {
     const { sessionId, filter = {}, limit = 50, includeHidden = false } = args;
     const session = await this.getSession(sessionId);
-    if (!session) return { success: false, message: `Session '${sessionId}' not found` };
+    if (!session) return { success: false, message: 'Session not found' };
 
     try {
       const data = await session.driver.executeScript(`
@@ -1155,7 +1271,7 @@ class MCPSeleniumServer {
   private async checkElementExists(args: any) {
     const { sessionId, selector, by = 'css' } = args;
     const session = await this.getSession(sessionId);
-    if (!session) return { success: false, message: `Session '${sessionId}' not found` };
+    if (!session) return { success: false, message: 'Session not found' };
     try {
       const info: any = await session.driver.executeScript(`
         const selector = arguments[0];
@@ -1234,7 +1350,7 @@ class MCPSeleniumServer {
   private async findByDescription(args: any) {
     const { sessionId, description, context = '', preferredSelector = 'all', limit = 10 } = args;
     const session = await this.getSession(sessionId);
-    if (!session) return { success: false, message: `Session '${sessionId}' not found` };
+    if (!session) return { success: false, message: 'Session not found' };
     try {
       const data = await session.driver.executeScript(`
       const desc = arguments[0].toLowerCase();
@@ -1296,7 +1412,7 @@ class MCPSeleniumServer {
   private async fillForm(args: any) {
     const { sessionId, fields, submitAfter = false, submitSelector } = args;
     const session = await this.getSession(sessionId);
-    if (!session) return { success: false, message: `Session '${sessionId}' not found` };
+    if (!session) return { success: false, message: 'Session not found' };
     let filled = 0; const errors: any[] = [];
     for (const [name, cfg] of Object.entries(fields || {})) {
       try {
@@ -1363,7 +1479,7 @@ class MCPSeleniumServer {
   private async selectOption(args: any) {
     const { sessionId, selector, option, timeout = 10000 } = args;
     const session = await this.getSession(sessionId);
-    if (!session) return { success: false, message: `Session '${sessionId}' not found` };
+    if (!session) return { success: false, message: 'Session not found' };
     try {
       const result = await session.driver.executeScript(`
         const selector = arguments[0];
@@ -1433,7 +1549,7 @@ class MCPSeleniumServer {
   private async waitForPageChange(args: any) {
     const { sessionId, fromUrl, toUrlPattern, timeout = 10000, takeScreenshot = false } = args;
     const session = await this.getSession(sessionId);
-    if (!session) return { success: false, message: `Session '${sessionId}' not found` };
+    if (!session) return { success: false, message: 'Session not found' };
     try {
       const oldUrl = fromUrl || await session.driver.getCurrentUrl();
       let newUrl = oldUrl;
@@ -1474,15 +1590,15 @@ class MCPSeleniumServer {
   private async handleNavigateTo(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
-    return await navigateToTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+    return await navigateToTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger, this.injectBadge.bind(this));
   }
 
   private async handleClickElement(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await clickElementTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.findElementBySelector.bind(this), this.logger);
   }
@@ -1490,7 +1606,7 @@ class MCPSeleniumServer {
   private async handleTypeText(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await typeTextTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.findElementBySelector.bind(this), this.logger);
   }
@@ -1498,7 +1614,7 @@ class MCPSeleniumServer {
   private async handleTakeScreenshot(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await takeScreenshotTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
   }
@@ -1506,7 +1622,7 @@ class MCPSeleniumServer {
   private async handleExecuteScript(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await executeScriptTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
   }
@@ -1514,7 +1630,7 @@ class MCPSeleniumServer {
   private async handleGetPageDebugInfo(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await getPageDebugInfoTool(
       { ...args, sessionId: session.sessionId },
@@ -1527,7 +1643,7 @@ class MCPSeleniumServer {
   private async handleGetInteractiveElements(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await getInteractiveElementsTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
   }
@@ -1536,7 +1652,7 @@ class MCPSeleniumServer {
   private async handleListElements(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await this.listElements({ ...args, sessionId: session.sessionId });
   }
@@ -1544,7 +1660,7 @@ class MCPSeleniumServer {
   private async handleCheckElementExists(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await this.checkElementExists({ ...args, sessionId: session.sessionId });
   }
@@ -1552,7 +1668,7 @@ class MCPSeleniumServer {
   private async handleFindByDescription(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await this.findByDescription({ ...args, sessionId: session.sessionId });
   }
@@ -1560,7 +1676,7 @@ class MCPSeleniumServer {
   private async handleFillForm(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await this.fillForm({ ...args, sessionId: session.sessionId });
   }
@@ -1568,7 +1684,7 @@ class MCPSeleniumServer {
   private async handleSelectOption(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await this.selectOption({ ...args, sessionId: session.sessionId });
   }
@@ -1576,49 +1692,55 @@ class MCPSeleniumServer {
   private async handleWaitForPageChange(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
     return await this.waitForPageChange({ ...args, sessionId: session.sessionId });
   }
 
-  private async listBrowsers() {
-    const browsers = Array.from(this.browserSessions.values()).map(session => ({
-      browserId: session.browserId,
-      sessionId: session.sessionId,
-      isActive: session.isActive,
-      createdAt: session.createdAt.toISOString(),
-      lastUsed: session.lastUsed.toISOString(),
-    }));
+  private async handleSetBadge(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: 'Browser not found' };
+    }
+    return await this.setBadge({ ...args, sessionId: session.sessionId });
+  }
 
-    this.logger.info('Listed browsers', { count: browsers.length });
-    return {
-      success: true,
-      message: `Found ${browsers.length} active browser instance(s)`,
-      data: { browsers, count: browsers.length },
-    };
+  private async handleGetPageElementsMarkdown(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: 'Browser not found' };
+    }
+    return await getPageElementsMarkdownTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+  }
+
+  private async listBrowsers() {
+    const browsers = Array.from(this.browserSessions.values()).map(s => ({
+      id: s.browserId,
+      session: s.sessionId,
+      active: s.isActive
+    }));
+    return { success: true, data: { browsers, count: browsers.length } };
   }
 
   private async getWindowInfo(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
 
     try {
-      const size = await session.driver.manage().window().getSize();
-      const position = await session.driver.manage().window().getPosition();
       const rect = await session.driver.manage().window().getRect();
 
       const windowInfo = {
         browserId: session.browserId,
         sessionId: session.sessionId,
         size: {
-          width: size.width,
-          height: size.height,
+          width: rect.width,
+          height: rect.height,
         },
         position: {
-          x: position.x,
-          y: position.y,
+          x: rect.x,
+          y: rect.y,
         },
         rect: {
           x: rect.x,
@@ -1648,20 +1770,20 @@ class MCPSeleniumServer {
 
   private async setWindowSize(args: any) {
     const session = await this.resolveSession(args);
-    if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
-    }
-
+    if (!session) return { success: false, message: 'Browser not found' };
     const { width, height } = args;
-    if (!width || !height) {
-      return {
-        success: false,
-        message: 'Width and height are required',
-      };
-    }
+    if (!width || !height) return { success: false, message: 'Width and height required' };
 
     try {
-      await session.driver.manage().window().setSize(width, height);
+      // Get current position to preserve it
+      const currentRect = await session.driver.manage().window().getRect();
+      // Set size using setRect (which includes position)
+      await session.driver.manage().window().setRect({
+        x: currentRect.x,
+        y: currentRect.y,
+        width: width,
+        height: height,
+      });
       this.logger.info('Window size set', { browserId: session.browserId, width, height });
       return {
         success: true,
@@ -1685,7 +1807,7 @@ class MCPSeleniumServer {
   private async setWindowPosition(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
-      return { success: false, message: `Browser not found. browserId: ${args.browserId || 'not provided'}, sessionId: ${args.sessionId || 'not provided'}` };
+      return { success: false, message: 'Browser not found' };
     }
 
     const { x, y, monitor } = args;
@@ -1707,7 +1829,15 @@ class MCPSeleniumServer {
     }
 
     try {
-      await session.driver.manage().window().setPosition(finalX, finalY);
+      // Get current window size to preserve it
+      const currentRect = await session.driver.manage().window().getRect();
+      // Set position using setRect (which includes position)
+      await session.driver.manage().window().setRect({
+        x: finalX,
+        y: finalY,
+        width: currentRect.width,
+        height: currentRect.height,
+      });
       this.logger.info('Window position set', {
         browserId: session.browserId,
         x: finalX,
