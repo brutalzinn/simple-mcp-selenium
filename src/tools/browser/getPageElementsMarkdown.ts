@@ -34,9 +34,12 @@ export async function getPageElementsMarkdownTool(
         if (el.id) return '#' + CSS.escape(el.id);
         if (el.name) return \`[name="\${el.name}"]\`;
         if (el.className) {
-          const classes = el.className.split(' ').filter(c => c.trim()).slice(0, 2);
+          const className = typeof el.className === 'string' ? el.className : (el.classList ? Array.from(el.classList).join(' ') : '');
+          if (className) {
+            const classes = className.split(' ').filter(c => c.trim()).slice(0, 2);
           if (classes.length > 0) {
             return '.' + classes.map(c => CSS.escape(c)).join('.');
+            }
           }
         }
         return el.tagName.toLowerCase();

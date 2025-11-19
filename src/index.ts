@@ -20,11 +20,13 @@ import { executeScriptTool } from './tools/browser/executeScript.js';
 import { closeBrowserTool } from './tools/browser/closeBrowser.js';
 import { getPageDebugInfoTool } from './tools/browser/getPageDebugInfo.js';
 import { getInteractiveElementsTool } from './tools/browser/getInteractiveElements.js';
-import { getPageElementsMarkdownTool } from './tools/browser/getPageElementsMarkdown.js';
+import { getPageElementsTool } from './tools/browser/getPageElements.js';
+import { getPageCodeTool } from './tools/browser/getPageCode.js';
 import { PluginManager } from './utils/pluginManager.js';
 import { MCPPlugin } from './types/plugin.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { encode } from '@toon-format/toon';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -72,7 +74,7 @@ class MCPSeleniumServer {
       const tools: any[] = [
         {
           name: 'open_browser',
-          description: 'Open a browser window with a unique ID. Multiple browser instances can be managed simultaneously using different browserId values.',
+          description: 'Open a browser window. Use browserId to identify the instance.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -119,7 +121,7 @@ class MCPSeleniumServer {
         },
         {
           name: 'navigate_to',
-          description: 'Navigate browser to a URL',
+          description: 'Go to a URL. Use browserId or sessionId to identify the browser.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -141,7 +143,7 @@ class MCPSeleniumServer {
         },
         {
           name: 'click_element',
-          description: 'Click on an element using CSS selector',
+          description: 'Click an element. Provide CSS selector.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -163,7 +165,7 @@ class MCPSeleniumServer {
         },
         {
           name: 'type_text',
-          description: 'Type text into an input field',
+          description: 'Type text into an input field. Provide CSS selector and text.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -189,7 +191,7 @@ class MCPSeleniumServer {
         },
         {
           name: 'take_screenshot',
-          description: 'Capture a screenshot of the current page',
+          description: 'Take a screenshot of the current page.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -205,12 +207,16 @@ class MCPSeleniumServer {
                 type: 'string',
                 description: 'Optional filename to save the screenshot',
               },
+              projectDir: {
+                type: 'string',
+                description: 'Optional project directory path. If not provided, will try to detect from environment or use current working directory',
+              },
             },
           },
         },
         {
           name: 'execute_script',
-          description: 'Execute JavaScript code in the browser context. The script receives arguments from the args array as function parameters.',
+          description: 'Run JavaScript in the browser. Pass args array for function parameters.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -261,418 +267,8 @@ class MCPSeleniumServer {
           },
         },
         {
-          name: 'list_browsers',
-          description: 'List all active browser instances with their IDs and session information',
-          inputSchema: {
-            type: 'object',
-            properties: {},
-          },
-        },
-        {
-          name: 'get_window_info',
-          description: 'Get current browser window size and position information',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-            },
-          },
-        },
-        {
-          name: 'set_window_size',
-          description: 'Set browser window size',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              width: {
-                type: 'number',
-                description: 'Window width in pixels',
-              },
-              height: {
-                type: 'number',
-                description: 'Window height in pixels',
-              },
-            },
-            required: ['width', 'height'],
-          },
-        },
-        {
-          name: 'set_window_position',
-          description: 'Set browser window position on screen. Useful for multi-monitor setups',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              x: {
-                type: 'number',
-                description: 'Window X position in pixels',
-              },
-              y: {
-                type: 'number',
-                description: 'Window Y position in pixels',
-              },
-              monitor: {
-                type: 'string',
-                enum: ['primary', 'secondary', 'auto'],
-                description: 'Monitor preset. primary=0,0; secondary=1920,0. x/y override this if provided',
-              },
-            },
-          },
-        },
-        {
-          name: 'get_page_debug_info',
-          description: 'Get comprehensive page debug information including URL, title, console logs, network logs, performance metrics, and interactive elements. Provides everything the browser developer console offers for autonomous error detection and debugging.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              includeConsole: {
-                type: 'boolean',
-                description: 'Include browser console logs (console.log, console.error, console.warn, etc.). Default: true',
-              },
-              includeNetwork: {
-                type: 'boolean',
-                description: 'Include network logs (fetch, XHR, WebSocket requests). Default: true',
-              },
-              includePerformance: {
-                type: 'boolean',
-                description: 'Include performance metrics (load time, paint metrics, resource loading). Default: true',
-              },
-              includeElements: {
-                type: 'boolean',
-                description: 'Include page elements. Default: true',
-              },
-              elementLimit: {
-                type: 'number',
-                description: 'Maximum number of elements to return. Default: 50',
-              },
-              logLimit: {
-                type: 'number',
-                description: 'Maximum number of console logs to return (0 for all logs). Default: 20',
-              },
-              networkLimit: {
-                type: 'number',
-                description: 'Maximum number of network requests to return. Default: 50',
-              },
-            },
-          },
-        },
-        {
-          name: 'get_interactive_elements',
-          description: 'Get interactive elements (buttons, inputs, links, form controls) that can be clicked or interacted with',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              elementLimit: {
-                type: 'number',
-                description: 'Maximum number of interactive elements to return. Default: 50',
-              },
-            },
-          },
-        },
-        {
-          name: 'list_elements',
-          description: 'List all page elements with optional filtering. More comprehensive than get_interactive_elements as it supports filtering by type, tag, text, and attributes',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              filter: {
-                type: 'object',
-                description: 'Optional filter object to narrow down elements',
-                properties: {
-                  type: {
-                    type: 'string',
-                    enum: ['button', 'input', 'link', 'form', 'select', 'any'],
-                    description: 'Filter by element type',
-                  },
-                  tagName: {
-                    type: 'string',
-                    description: 'Filter by HTML tag name',
-                  },
-                  visibleOnly: {
-                    type: 'boolean',
-                    description: 'Only return visible elements. Default: true',
-                  },
-                  containsText: {
-                    type: 'string',
-                    description: 'Filter elements containing this text',
-                  },
-                  hasAttribute: {
-                    type: 'object',
-                    description: 'Filter by attribute',
-                    properties: {
-                      name: { type: 'string' },
-                      value: { type: 'string' },
-                    },
-                  },
-                  cssSelector: {
-                    type: 'string',
-                    description: 'Filter by CSS selector',
-                  },
-                },
-              },
-              limit: {
-                type: 'number',
-                description: 'Maximum number of elements to return. Default: 50',
-              },
-              includeHidden: {
-                type: 'boolean',
-                description: 'Include hidden elements in results. Default: false',
-              },
-            },
-          },
-        },
-        {
-          name: 'check_element_exists',
-          description: 'Check if an element exists on the page',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              selector: {
-                type: 'string',
-                description: 'Element selector',
-              },
-              by: {
-                type: 'string',
-                enum: ['css', 'xpath', 'id', 'name', 'className', 'tagName', 'text'],
-                description: 'Selector type. Default: css',
-              },
-            },
-            required: ['selector'],
-          },
-        },
-        {
-          name: 'find_by_description',
-          description: 'Find element by human-readable description using AI-like matching',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              description: {
-                type: 'string',
-                description: 'Human-readable description of the element to find',
-              },
-              context: {
-                type: 'string',
-                description: 'Optional context to help narrow down the search',
-              },
-              preferredSelector: {
-                type: 'string',
-                enum: ['css', 'xpath', 'all'],
-                description: 'Preferred selector type to return. Default: all',
-              },
-              limit: {
-                type: 'number',
-                description: 'Maximum number of matches to return. Default: 10',
-              },
-            },
-            required: ['description'],
-          },
-        },
-        {
-          name: 'fill_form',
-          description: 'Fill multiple form fields at once',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              fields: {
-                type: 'object',
-                description: 'Object mapping field names to {selector, value} objects',
-                additionalProperties: {
-                  type: 'object',
-                  properties: {
-                    selector: { type: 'string' },
-                    value: { type: 'string' },
-                  },
-                },
-              },
-              submitAfter: {
-                type: 'boolean',
-                description: 'Submit the form after filling. Default: false',
-              },
-              submitSelector: {
-                type: 'string',
-                description: 'CSS selector for the submit button (if different from default)',
-              },
-            },
-            required: ['fields'],
-          },
-        },
-        {
-          name: 'select_option',
-          description: 'Select an option from a dropdown/select element',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              selector: {
-                type: 'string',
-                description: 'CSS selector for the select element',
-              },
-              option: {
-                type: 'object',
-                description: 'Option selection criteria',
-                properties: {
-                  by: {
-                    type: 'string',
-                    enum: ['text', 'value', 'index'],
-                    description: 'How to select the option',
-                  },
-                  text: {
-                    type: 'string',
-                    description: 'Option text to match (when by=text)',
-                  },
-                  value: {
-                    type: 'string',
-                    description: 'Option value to match (when by=value)',
-                  },
-                  index: {
-                    type: 'number',
-                    description: 'Option index to select (when by=index)',
-                  },
-                },
-              },
-              timeout: {
-                type: 'number',
-                description: 'Timeout in milliseconds. Default: 10000',
-              },
-            },
-            required: ['selector', 'option'],
-          },
-        },
-        {
-          name: 'wait_for_page_change',
-          description: 'Wait for the page URL to change (useful after form submissions or navigation)',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              fromUrl: {
-                type: 'string',
-                description: 'Current URL to wait for change from',
-              },
-              toUrlPattern: {
-                type: 'string',
-                description: 'URL pattern to wait for (supports wildcards)',
-              },
-              timeout: {
-                type: 'number',
-                description: 'Timeout in milliseconds. Default: 10000',
-              },
-              takeScreenshot: {
-                type: 'boolean',
-                description: 'Take screenshot when page changes. Default: false',
-              },
-            },
-          },
-        },
-        {
-          name: 'set_badge',
-          description: 'Set or update the debug badge text displayed on the page. Can be called at any time to change the badge. Pass empty string to remove badge.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              badge: {
-                type: 'string',
-                description: 'Badge text to display. Pass empty string to remove badge.',
-              },
-            },
-            required: ['badge'],
-          },
-        },
-        {
-          name: 'get_page_elements_markdown',
-          description: 'Get all page elements formatted as simple markdown that Cursor can understand. Returns a structured markdown document with all elements, their selectors, properties, and interaction capabilities. Perfect for autonomous element discovery and management.',
+          name: 'get_page_elements',
+          description: 'Get DOM tree structure with all element properties. Returns hierarchical tree like browser inspector. All data in TOON format.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -688,9 +284,68 @@ class MCPSeleniumServer {
                 type: 'boolean',
                 description: 'Include hidden elements. Default: false',
               },
-              elementLimit: {
+              maxDepth: {
                 type: 'number',
-                description: 'Maximum number of elements to return. Default: 100',
+                description: 'Maximum depth of DOM tree. Default: 10',
+              },
+            },
+          },
+        },
+        {
+          name: 'find_by_description',
+          description: 'Find element by description (e.g., "login button", "search box"). Returns matching selectors.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              description: {
+                type: 'string',
+                description: 'Human-readable description of the element to find',
+              },
+              limit: {
+                type: 'number',
+                description: 'Maximum number of matches to return. Default: 10',
+              },
+            },
+            required: ['description'],
+          },
+        },
+        {
+          name: 'get_page_code',
+          description: 'Extract code from page: JavaScript, CSS, code blocks. Returns markdown. Use to view/analyze page code.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'Session ID of the browser (alternative to browserId)',
+              },
+              browserId: {
+                type: 'string',
+                description: 'Browser ID of the browser (alternative to sessionId)',
+              },
+              includeScripts: {
+                type: 'boolean',
+                description: 'Include JavaScript code (script tags). Default: true',
+              },
+              includeStyles: {
+                type: 'boolean',
+                description: 'Include CSS styles. Default: false',
+              },
+              includeInline: {
+                type: 'boolean',
+                description: 'Include inline code (not just external files). Default: true',
+              },
+              maxLength: {
+                type: 'number',
+                description: 'Maximum length per code snippet. Default: 50000',
               },
             },
           },
@@ -788,60 +443,16 @@ class MCPSeleniumServer {
             result = await closeBrowserTool(args, this.getSession.bind(this), this.browserSessions, this.logger, this.getSessionByBrowserId.bind(this));
             break;
 
-          case 'list_browsers':
-            result = await this.listBrowsers();
-            break;
-
-          case 'get_window_info':
-            result = await this.getWindowInfo(args);
-            break;
-
-          case 'set_window_size':
-            result = await this.setWindowSize(args);
-            break;
-
-          case 'set_window_position':
-            result = await this.setWindowPosition(args);
-            break;
-
-          case 'get_page_debug_info':
-            result = await this.handleGetPageDebugInfo(args);
-            break;
-
-          case 'get_interactive_elements':
-            result = await this.handleGetInteractiveElements(args);
-            break;
-
-          case 'list_elements':
-            result = await this.handleListElements(args);
-            break;
-
-          case 'check_element_exists':
-            result = await this.handleCheckElementExists(args);
-            break;
-
           case 'find_by_description':
             result = await this.handleFindByDescription(args);
             break;
 
-          case 'fill_form':
-            result = await this.handleFillForm(args);
+          case 'get_page_elements':
+            result = await this.handleGetPageElements(args);
             break;
 
-          case 'select_option':
-            result = await this.handleSelectOption(args);
-            break;
-
-          case 'wait_for_page_change':
-            result = await this.handleWaitForPageChange(args);
-            break;
-
-          case 'set_badge':
-            result = await this.handleSetBadge(args);
-            break;
-
-          case 'get_page_elements_markdown':
-            result = await this.handleGetPageElementsMarkdown(args);
+          case 'get_page_code':
+            result = await this.handleGetPageCode(args);
             break;
 
           default:
@@ -876,21 +487,46 @@ class MCPSeleniumServer {
         });
 
         // Plugin tools return { content: Array<{ type: string; text: string }> } format
+        // If already in content format and contains markdown, return as-is
         if (result && typeof result === 'object' && 'content' in result && Array.isArray(result.content)) {
-          return result;
+          // Check if content is already markdown-formatted
+          const firstContent = result.content[0];
+          if (firstContent && firstContent.text && (
+            firstContent.text.includes('##') ||
+            firstContent.text.includes('```') ||
+            firstContent.text.includes('**')
+          )) {
+            return result;
+          }
+          // Otherwise, format the content as markdown
+          const markdownText = this.formatResultAsMarkdown(result, name);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: markdownText,
+              },
+            ],
+          };
         }
 
         // Built-in tools return { success: boolean, message: string, data?: any } format
+        // Convert to markdown for final MCP response (JSON is used internally only)
         let responseText: string;
         try {
-          responseText = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-        } catch (jsonError) {
-          this.logger.error('Failed to stringify tool result', {
+          responseText = this.formatResultAsMarkdown(result, name);
+        } catch (formatError) {
+          this.logger.error('Failed to format result as markdown', {
             toolName: name,
-            error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+            error: formatError instanceof Error ? formatError.message : String(formatError),
             resultType: typeof result
           });
-          responseText = `Error serializing result: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`;
+          // Fallback to JSON if markdown formatting fails
+          try {
+            responseText = `## Result\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n`;
+          } catch (jsonError) {
+            responseText = `## Error\n\nFailed to format result: ${formatError instanceof Error ? formatError.message : String(formatError)}`;
+          }
         }
 
         return {
@@ -902,27 +538,131 @@ class MCPSeleniumServer {
           ],
         };
       } catch (error) {
-        // Enhanced error logging
+        // Enhanced error logging - log to file with full details
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
-
-        this.logger.error('Tool execution error', {
+        const errorDetails = {
           toolName: name,
           error: errorMessage,
           stack: errorStack,
-          args: args ? JSON.stringify(args).substring(0, 500) : 'null'
-        });
+          args: args ? JSON.stringify(args).substring(0, 1000) : null,
+          timestamp: new Date().toISOString(),
+          sessionId: args?.sessionId || args?.browserId || 'unknown'
+        };
+
+        // Log error to file with comprehensive details
+        this.logger.error('MCP Tool Execution Error', errorDetails);
+
+        // Also write detailed error to a separate error log file
+        try {
+          const errorLogDir = path.join(process.cwd(), 'logs');
+          if (!fs.existsSync(errorLogDir)) {
+            fs.mkdirSync(errorLogDir, { recursive: true });
+          }
+          const errorLogFile = path.join(errorLogDir, `errors-${new Date().toISOString().split('T')[0]}.log`);
+          const errorLogEntry = {
+            timestamp: new Date().toISOString(),
+            tool: name,
+            error: errorMessage,
+            stack: errorStack,
+            args: args,
+            sessionId: args?.sessionId || args?.browserId
+          };
+          fs.appendFileSync(errorLogFile, JSON.stringify(errorLogEntry, null, 2) + '\n\n');
+        } catch (logError) {
+          this.logger.error('Failed to write error log file', {
+            error: logError instanceof Error ? logError.message : String(logError)
+          });
+        }
+
+        // Return error as TOON format
+        let errorToon: string;
+        try {
+          errorToon = encode({ tool: name, error: errorMessage, stack: errorStack ? errorStack.substring(0, 200) : null });
+        } catch {
+          errorToon = `error{tool,message}:${name},${errorMessage}`;
+        }
 
         return {
           content: [
             {
               type: 'text',
-              text: `Error: ${errorMessage}`,
+              text: `\`\`\`toon\n${errorToon}\n\`\`\``,
             },
           ],
         };
       }
     });
+  }
+
+  /**
+   * Format tool result as TOON (Token-Oriented Object Notation) for maximum token efficiency
+   */
+  private formatResultAsMarkdown(result: any, toolName: string): string {
+    // If result is already a string (pre-formatted markdown), return as-is
+    if (typeof result === 'string') {
+      if (result.includes('##') || result.includes('```') || result.includes('**') || result.includes('- ')) {
+        return result;
+      }
+      return result;
+    }
+
+    // Handle error results - use TOON for compact format
+    if (result && typeof result === 'object' && 'success' in result && result.success === false) {
+      try {
+        return encode({ error: result.message || 'Failed', data: result.data || null });
+      } catch {
+        return `error:${result.message || 'Failed'}`;
+      }
+    }
+
+    // Handle success results - use TOON format
+    if (result && typeof result === 'object' && 'success' in result && result.success === true) {
+      // If data contains pre-formatted markdown (like get_page_code), return as-is
+      if (result.data?.markdown) {
+        return result.data.markdown;
+      }
+
+      // Extract the actual data to encode
+      let dataToEncode: any = result.data || {};
+
+      // For simple messages without data, just return message
+      if (result.message && !result.data) {
+        return result.message;
+      }
+
+      // Use TOON to encode the data structure
+      try {
+        const toonOutput = encode(dataToEncode);
+        const formatted = result.message ? `${result.message}\n\`\`\`toon\n${toonOutput}\n\`\`\`` : `\`\`\`toon\n${toonOutput}\n\`\`\``;
+        this.logger.debug('TOON encoding successful', { toolName, outputLength: formatted.length });
+        return formatted;
+      } catch (error) {
+        // Fallback to simple format if TOON encoding fails
+        this.logger.error('TOON encoding failed, using fallback', {
+          toolName,
+          error: error instanceof Error ? error.message : String(error),
+          dataType: typeof dataToEncode,
+          dataKeys: dataToEncode && typeof dataToEncode === 'object' ? Object.keys(dataToEncode) : null
+        });
+        if (result.message) {
+          return `${result.message}\n${JSON.stringify(dataToEncode)}`;
+        }
+        return JSON.stringify(dataToEncode);
+      }
+    }
+
+    // Handle plain objects/arrays - use TOON
+    if (result && typeof result === 'object') {
+      try {
+        return `\`\`\`toon\n${encode(result)}\n\`\`\``;
+      } catch {
+        return JSON.stringify(result);
+      }
+    }
+
+    // Fallback for primitives
+    return String(result);
   }
 
   private async findElementBySelector(driver: WebDriver, selector: string, by: string = 'css', timeout: number = 10000): Promise<WebElement> {
@@ -1705,12 +1445,20 @@ class MCPSeleniumServer {
     return await this.setBadge({ ...args, sessionId: session.sessionId });
   }
 
-  private async handleGetPageElementsMarkdown(args: any) {
+  private async handleGetPageElements(args: any) {
     const session = await this.resolveSession(args);
     if (!session) {
       return { success: false, message: 'Browser not found' };
     }
-    return await getPageElementsMarkdownTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+    return await getPageElementsTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+  }
+
+  private async handleGetPageCode(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: 'Browser not found' };
+    }
+    return await getPageCodeTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
   }
 
   private async listBrowsers() {

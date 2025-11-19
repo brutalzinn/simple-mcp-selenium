@@ -1,6 +1,6 @@
 import { Builder, By, WebDriver, until, Key, Actions, Button } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
-import { promises as fs } from 'fs';
+import { promises as fs, existsSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
 
 export interface BrowserOptions {
@@ -573,15 +573,31 @@ export class BrowserAutomationCore {
 
     try {
       const screenshot = await this.driver.takeScreenshot();
-      const finalFilename = filename || `screenshot-${Date.now()}.png`;
-      const filepath = join(process.cwd(), finalFilename);
+      // Save to 'images' directory in the user's current project directory (where Cursor is running)
+      // process.cwd() returns the working directory of the process, which should be the user's project
+      // Try to get project directory from environment variable first, then fallback to process.cwd()
+      const projectDir = process.env.CURSOR_PROJECT_DIR || 
+                        process.env.CURSOR_WORKSPACE_ROOT || 
+                        process.env.WORKSPACE_ROOT ||
+                        process.cwd();
+      const imagesDir = join(projectDir, 'images');
+      
+      if (!existsSync(imagesDir)) {
+        mkdirSync(imagesDir, { recursive: true });
+      }
+      
+      const finalFilename = filename 
+        ? (filename.endsWith('.png') ? filename : `${filename}.png`)
+        : `screenshot-${Date.now()}.png`;
+      const filepath = join(imagesDir, finalFilename);
 
       await fs.writeFile(filepath, screenshot, 'base64');
 
+      const relativePath = join('images', finalFilename);
       return {
         success: true,
-        message: `Screenshot saved to: ${filepath}`,
-        data: { filepath },
+        message: `Screenshot saved to: ${relativePath}`,
+        data: { filepath, relativePath, projectDir },
       };
     } catch (error) {
       return {
