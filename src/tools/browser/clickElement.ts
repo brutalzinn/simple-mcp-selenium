@@ -8,12 +8,11 @@ interface FindElementBySelectorFunction {
 
 export async function clickElementTool(
     args: any,
-    getSession: (sessionId: string) => Promise<BrowserSession | null>,
+    session: BrowserSession | null,
     findElementBySelector: FindElementBySelectorFunction,
     logger: Logger
 ) {
-    const { sessionId, selector, by = 'css' } = args;
-    const session = await getSession(sessionId);
+    const { selector, by = 'css' } = args;
     if (!session) return { success: false, message: 'Session not found' };
     try {
         await session.driver.executeScript(`

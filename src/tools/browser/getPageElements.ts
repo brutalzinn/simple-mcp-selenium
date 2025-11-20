@@ -3,11 +3,10 @@ import { Logger } from '../../utils/logger.js';
 
 export async function getPageElementsTool(
   args: any,
-  getSession: (sessionId: string) => Promise<BrowserSession | null>,
+  session: BrowserSession | null,
   logger: Logger
 ) {
-  const { sessionId, browserId, includeHidden = false, maxDepth = 10 } = args;
-  const session = await getSession(sessionId || browserId);
+  const { includeHidden = false, maxDepth = 3, interactiveOnly = false, maxElements = 50 } = args;
 
   if (!session) {
     return {
@@ -17,9 +16,13 @@ export async function getPageElementsTool(
   }
 
   try {
+    // Optimized script - minimize execution cost by using efficient DOM traversal
     const data = await session.driver.executeScript(`
+      (function() {
       const includeHidden = arguments[0];
       const maxDepth = arguments[1];
+      const interactiveOnly = arguments[2];
+      const maxElements = arguments[3];
       
       function isVisible(el) {
         const rect = el.getBoundingClientRect();
@@ -107,10 +110,8 @@ export async function getPageElementsTool(
           actionHint: actionHint,
           id: el.id || null,
           name: el.getAttribute('name') || null,
-          classes: el.className ? (typeof el.className === 'string' ? el.className.split(' ').filter(c => c) : Array.from(el.classList)) : [],
-          attributes: attrs,
-          text: (el.textContent || '').trim(),
-          innerText: (el.innerText || '').trim(),
+          classes: el.className ? (typeof el.className === 'string' ? el.className.split(' ').filter(c => c).slice(0, 5) : Array.from(el.classList).slice(0, 5)) : [],
+          text: (el.textContent || '').trim().substring(0, 100),
           value: (el.value !== undefined) ? String(el.value) : null,
           href: (el.href || null),
           src: (el.src || null),
@@ -132,62 +133,36 @@ export async function getPageElementsTool(
             x: Math.round(rect.x), 
             y: Math.round(rect.y), 
             width: Math.round(rect.width), 
-            height: Math.round(rect.height),
-            top: Math.round(rect.top),
-            left: Math.round(rect.left),
-            bottom: Math.round(rect.bottom),
-            right: Math.round(rect.right)
+            height: Math.round(rect.height)
           },
           computed: {
             display: style.display,
             visibility: style.visibility,
-            position: style.position,
-            zIndex: style.zIndex,
-            backgroundColor: style.backgroundColor,
-            color: style.color,
-            fontSize: style.fontSize,
-            fontFamily: style.fontFamily,
-            fontWeight: style.fontWeight,
-            border: style.border,
-            margin: style.margin,
-            padding: style.padding,
-            opacity: style.opacity,
-            overflow: style.overflow,
-            cursor: style.cursor,
-            flexDirection: style.flexDirection,
-            flexWrap: style.flexWrap,
-            justifyContent: style.justifyContent,
-            alignItems: style.alignItems,
-            gridTemplateColumns: style.gridTemplateColumns,
-            gridTemplateRows: style.gridTemplateRows,
-            gap: style.gap
+            cursor: style.cursor
           },
           responsive: {
             inViewport: rect.top >= 0 && rect.left >= 0 && 
                        rect.bottom <= window.innerHeight && 
                        rect.right <= window.innerWidth,
-            partiallyVisible: (rect.top < window.innerHeight && rect.bottom > 0) &&
-                             (rect.left < window.innerWidth && rect.right > 0),
             widthPercent: Math.round((rect.width / window.innerWidth) * 100),
             heightPercent: Math.round((rect.height / window.innerHeight) * 100)
           }
         };
         
-        // For select elements, include options
+        // For select elements, include options (very limited)
         if (tag === 'select') {
-          const options = Array.from(el.options || []).map(opt => ({
+          const options = Array.from(el.options || []).slice(0, 5).map(opt => ({
             value: opt.value,
-            text: opt.text,
-            selected: opt.selected
+            text: opt.text.substring(0, 20)
           }));
           if (options.length > 0) {
             props.options = options;
           }
         }
         
-        // Remove null values to keep it clean
+        // Remove null/empty values
         Object.keys(props).forEach(key => {
-          if (props[key] === null || (Array.isArray(props[key]) && props[key].length === 0)) {
+          if (props[key] === null || props[key] === '') {
             delete props[key];
           }
         });
@@ -195,12 +170,42 @@ export async function getPageElementsTool(
         return props;
       }
 
+      // Track total elements processed to limit output size
+      let elementCount = 0;
+      
+      // Check if element is interactive
+      function isInteractive(el) {
+        const tag = el.tagName.toLowerCase();
+        return tag === 'input' || tag === 'button' || tag === 'textarea' || tag === 'select' || 
+               tag === 'a' || el.getAttribute('role') === 'button' || el.getAttribute('onclick') ||
+               el.getAttribute('tabindex') !== null;
+      }
+      
       // Recursive function to build DOM tree - traverses from outermost to innermost
       // This ensures we process elements in hierarchical order: root -> children -> grandchildren -> etc.
       function buildDOMTree(root, depth = 0) {
-        // Base case: stop if max depth reached or invalid node
+        // Base case: stop if max depth reached, invalid node, or element limit reached
         if (depth > maxDepth) return null;
+        if (elementCount >= maxElements) return null;
         if (!root || root.nodeType !== 1) return null; // Only element nodes
+        
+        // If interactiveOnly is true, skip non-interactive elements (but keep their children)
+        if (interactiveOnly && depth > 0 && !isInteractive(root)) {
+          // Still process children but don't include this element
+          const children = Array.from(root.children || []);
+          const filteredChildren = includeHidden ? children : children.filter(isVisible);
+          const childrenTree = [];
+          for (let i = 0; i < filteredChildren.length && elementCount < maxElements; i++) {
+            const child = filteredChildren[i];
+            const childTree = buildDOMTree(child, depth);
+            if (childTree !== null) {
+              childrenTree.push(childTree);
+            }
+          }
+          return childrenTree.length > 0 ? { children: childrenTree } : null;
+        }
+        
+        elementCount++;
         
         // Process current element first (outermost)
         const elementInfo = getElementProperties(root);
@@ -212,7 +217,7 @@ export async function getPageElementsTool(
         // Recursive call: process each child and its descendants
         // This creates depth-first traversal: parent -> child -> grandchild -> etc.
         const childrenTree = [];
-        for (let i = 0; i < filteredChildren.length; i++) {
+        for (let i = 0; i < filteredChildren.length && elementCount < maxElements; i++) {
           const child = filteredChildren[i];
           const childTree = buildDOMTree(child, depth + 1);
           if (childTree !== null) {
@@ -257,26 +262,16 @@ export async function getPageElementsTool(
       return {
         url: window.location.href,
         title: document.title,
-        viewport: viewport,
-        responsive: {
-          breakpoint: breakpoint,
-          isMobile: viewport.width < 768,
-          isTablet: viewport.width >= 768 && viewport.width < 992,
-          isDesktop: viewport.width >= 992
-        },
-        stats: {
-          total: allElements.length,
-          visible: visibleCount,
-          hidden: allElements.length - visibleCount
-        },
         tree: domTree
       };
-    `, includeHidden, maxDepth);
+      })();
+    `, includeHidden, maxDepth, interactiveOnly, maxElements);
 
     const pageData = data as any;
-    
+
     logger.info('Page elements extracted', {
-      sessionId: sessionId || browserId,
+      sessionId: session.sessionId,
+      browserId: session.browserId,
       url: pageData.url,
       totalElements: pageData.stats?.total || 0
     });
@@ -288,7 +283,8 @@ export async function getPageElementsTool(
     };
   } catch (error) {
     logger.error('Failed to get page elements', {
-      sessionId: sessionId || browserId,
+      sessionId: session?.sessionId,
+      browserId: session?.browserId,
       error: error instanceof Error ? error.message : String(error)
     });
     return {

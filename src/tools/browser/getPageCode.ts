@@ -3,11 +3,10 @@ import { Logger } from '../../utils/logger.js';
 
 export async function getPageCodeTool(
   args: any,
-  getSession: (sessionId: string) => Promise<BrowserSession | null>,
+  session: BrowserSession | null,
   logger: Logger
 ) {
-  const { sessionId, browserId, includeScripts = true, includeStyles = false, includeInline = true, maxLength = 50000 } = args;
-  const session = await getSession(sessionId || browserId);
+  const { includeScripts = true, includeStyles = false, includeInline = true, maxLength = 50000 } = args;
 
   if (!session) {
     return {
@@ -150,7 +149,8 @@ export async function getPageCodeTool(
     };
   } catch (error) {
     logger.error('Failed to get page code', {
-      sessionId: sessionId || browserId,
+      sessionId: session?.sessionId,
+      browserId: session?.browserId,
       error: error instanceof Error ? error.message : String(error)
     });
     return {

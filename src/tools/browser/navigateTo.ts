@@ -3,12 +3,11 @@ import { Logger } from '../../utils/logger.js';
 
 export async function navigateToTool(
     args: any,
-    getSession: (sessionId: string) => Promise<BrowserSession | null>,
+    session: BrowserSession | null,
     logger: Logger,
     injectBadge?: (driver: any) => Promise<any>
 ) {
-    const { sessionId, url } = args;
-    const session = await getSession(sessionId);
+    const { url } = args;
 
     if (!session) return { success: false, message: 'Session not found' };
 
@@ -21,7 +20,7 @@ export async function navigateToTool(
                 await session.driver.executeScript(`localStorage.setItem('mcp-debug-badge', '${session.badge}');`);
                 await injectBadge(session.driver);
             } catch (error) {
-                logger.warn('Badge re-inject failed', { sessionId });
+                logger.warn('Badge re-inject failed', { sessionId: session.sessionId, browserId: session.browserId });
             }
         }
         

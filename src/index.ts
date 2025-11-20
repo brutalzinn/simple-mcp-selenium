@@ -18,10 +18,9 @@ import { typeTextTool } from './tools/browser/typeText.js';
 import { takeScreenshotTool } from './tools/browser/takeScreenshot.js';
 import { executeScriptTool } from './tools/browser/executeScript.js';
 import { closeBrowserTool } from './tools/browser/closeBrowser.js';
-import { getPageDebugInfoTool } from './tools/browser/getPageDebugInfo.js';
-import { getInteractiveElementsTool } from './tools/browser/getInteractiveElements.js';
 import { getPageElementsTool } from './tools/browser/getPageElements.js';
 import { getPageCodeTool } from './tools/browser/getPageCode.js';
+import { devToolsTool } from './tools/browser/devTools.js';
 import { PluginManager } from './utils/pluginManager.js';
 import { MCPPlugin } from './types/plugin.js';
 import { fileURLToPath } from 'url';
@@ -120,62 +119,58 @@ class MCPSeleniumServer {
           },
         },
         {
+          name: 'list_browsers',
+          description: 'List all active browser instances. Use this to see available browserId values for managing multiple browser sessions (e.g., testing chat apps with multiple users).',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
+        },
+        {
           name: 'navigate_to',
-          description: 'Go to a URL. Use browserId or sessionId to identify the browser.',
+          description: 'Navigate to a URL. Use browserId to identify the browser instance.',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
               browserId: {
                 type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
+                description: 'Browser ID to identify the browser instance. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
               },
               url: {
                 type: 'string',
                 description: 'URL to navigate to',
               },
             },
-            required: ['url'],
+            required: ['browserId', 'url'],
           },
         },
         {
           name: 'click_element',
-          description: 'Click an element. Provide CSS selector.',
+          description: 'Click an element. Provide CSS selector. Use browserId to identify the browser instance.',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
               browserId: {
                 type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
+                description: 'Browser ID to identify the browser instance. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
               },
               selector: {
                 type: 'string',
                 description: 'CSS selector for the element to click',
               },
             },
-            required: ['selector'],
+            required: ['browserId', 'selector'],
           },
         },
         {
           name: 'type_text',
-          description: 'Type text into an input field. Provide CSS selector and text.',
+          description: 'Type text into an input field. Provide CSS selector and text. Use browserId to identify the browser instance.',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
               browserId: {
                 type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
+                description: 'Browser ID to identify the browser instance. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
               },
               selector: {
                 type: 'string',
@@ -186,22 +181,18 @@ class MCPSeleniumServer {
                 description: 'Text to type',
               },
             },
-            required: ['selector', 'text'],
+            required: ['browserId', 'selector', 'text'],
           },
         },
         {
           name: 'take_screenshot',
-          description: 'Take a screenshot of the current page.',
+          description: 'Take a screenshot of the current page. Use browserId to identify the browser instance.',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
               browserId: {
                 type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
+                description: 'Browser ID to identify the browser instance. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
               },
               filename: {
                 type: 'string',
@@ -212,25 +203,22 @@ class MCPSeleniumServer {
                 description: 'Optional project directory path. If not provided, will try to detect from environment or use current working directory',
               },
             },
+            required: ['browserId'],
           },
         },
         {
           name: 'execute_script',
-          description: 'Run JavaScript in the browser. Pass args array for function parameters.',
+          description: 'Execute JavaScript in the browser context. Automatically handles promises and async code. Returns results in TOON format. Use browserId to identify the browser instance. Examples: Simple return: script="(() => { return { status: \'ok\', value: 123 }; })()" returns result{status,value}. Promise: script="(() => { return new Promise(resolve => setTimeout(() => resolve({ done: true }), 1000)); })()" automatically awaits. DOM query: script="(() => { const el = document.getElementById(\'test\'); return { found: !!el, id: el?.id }; })()" returns DOM data.',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
               browserId: {
                 type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
+                description: 'Browser ID to identify the browser instance. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
               },
               script: {
                 type: 'string',
-                description: 'JavaScript code to execute. Arguments from args array are passed as function parameters (arguments[0], arguments[1], etc.)',
+                description: 'JavaScript code to execute. Can be: simple expression, IIFE, arrow function, or promise. Scripts are automatically wrapped to ensure return values. Promises are automatically awaited. Arguments from args array are passed as function parameters (arguments[0], arguments[1], etc.)',
               },
               args: {
                 type: 'array',
@@ -246,39 +234,32 @@ class MCPSeleniumServer {
                 },
               },
             },
-            required: ['script'],
+            required: ['browserId', 'script'],
           },
         },
         {
           name: 'close_browser',
-          description: 'Close browser by sessionId or browserId',
+          description: 'Close a browser instance. Use browserId to identify the browser instance.',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser to close (alternative to browserId)',
-              },
               browserId: {
                 type: 'string',
-                description: 'Browser ID of the browser to close (alternative to sessionId)',
+                description: 'Browser ID to identify the browser instance to close. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
               },
             },
+            required: ['browserId'],
           },
         },
         {
           name: 'get_page_elements',
-          description: 'Get DOM tree structure with all element properties. Returns hierarchical tree like browser inspector. All data in TOON format.',
+          description: 'Get DOM tree structure as a simple nested tree. Returns hierarchical tree of DOM elements that Cursor can understand and interact with. All data in TOON format. Use browserId to identify the browser instance.',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
               browserId: {
                 type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
+                description: 'Browser ID to identify the browser instance. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
               },
               includeHidden: {
                 type: 'boolean',
@@ -286,50 +267,29 @@ class MCPSeleniumServer {
               },
               maxDepth: {
                 type: 'number',
-                description: 'Maximum depth of DOM tree. Default: 10',
+                description: 'Maximum depth of DOM tree. Default: 3 (keeps output small, prevents file storage)',
               },
-            },
-          },
-        },
-        {
-          name: 'find_by_description',
-          description: 'Find element by description (e.g., "login button", "search box"). Returns matching selectors.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
+              interactiveOnly: {
+                type: 'boolean',
+                description: 'Only return interactive elements (inputs, buttons, links, etc.). Significantly reduces output size. Default: false',
               },
-              browserId: {
-                type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
-              },
-              description: {
-                type: 'string',
-                description: 'Human-readable description of the element to find',
-              },
-              limit: {
+              maxElements: {
                 type: 'number',
-                description: 'Maximum number of matches to return. Default: 10',
+                description: 'Maximum number of elements to return. Default: 50 (keeps output small, prevents file storage)',
               },
             },
-            required: ['description'],
+            required: ['browserId'],
           },
         },
         {
           name: 'get_page_code',
-          description: 'Extract code from page: JavaScript, CSS, code blocks. Returns markdown. Use to view/analyze page code.',
+          description: 'Extract code from page: JavaScript, CSS, code blocks. Returns markdown. Use to view/analyze page code. Use browserId to identify the browser instance.',
           inputSchema: {
             type: 'object',
             properties: {
-              sessionId: {
-                type: 'string',
-                description: 'Session ID of the browser (alternative to browserId)',
-              },
               browserId: {
                 type: 'string',
-                description: 'Browser ID of the browser (alternative to sessionId)',
+                description: 'Browser ID to identify the browser instance. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
               },
               includeScripts: {
                 type: 'boolean',
@@ -348,6 +308,163 @@ class MCPSeleniumServer {
                 description: 'Maximum length per code snippet. Default: 50000',
               },
             },
+            required: ['browserId'],
+          },
+        },
+        {
+          name: 'dev_tools',
+          description: 'Access comprehensive browser developer tools features: console logs, network requests, performance metrics, element interactions, CSS inspection/modification, script reading, storage management, viewport/device emulation. Use browserId to identify the browser instance. This tool provides everything a developer can see in Chrome DevTools.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              browserId: {
+                type: 'string',
+                description: 'Browser ID to identify the browser instance. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
+              },
+              action: {
+                type: 'string',
+                enum: [
+                  'enable_dev_tools',
+                  'get_console_logs', 'get_network_requests', 'get_performance_metrics', 'get_performance_feedback',
+                  'get_storage', 'get_cookies', 'get_accessibility', 'get_security', 'get_manifest', 'get_service_workers',
+                  'get_memory', 'get_layout', 'get_computed_styles', 'get_event_listeners', 'get_all',
+                  'get_element_interactions',
+                  'get_css_property', 'set_css_property',
+                  'get_loaded_scripts', 'read_script',
+                  'clear_localStorage', 'set_localStorage', 'remove_localStorage',
+                  'clear_sessionStorage', 'set_sessionStorage',
+                  'clear_cookies', 'set_cookie', 'remove_cookie',
+                  'set_viewport_size', 'get_viewport_size', 'set_device_preset', 'reset_viewport'
+                ],
+                description: 'Action to perform. Setup: enable_dev_tools (enables console capture, network monitoring, and element tracking automatically). Console: get_console_logs. Network: get_network_requests. Performance: get_performance_metrics, get_performance_feedback. Storage: get_storage, clear_localStorage, set_localStorage, remove_localStorage, clear_sessionStorage, set_sessionStorage. Cookies: get_cookies, clear_cookies, set_cookie, remove_cookie. Elements: get_element_interactions, get_css_property, set_css_property, get_layout, get_computed_styles, get_event_listeners. Scripts: get_loaded_scripts, read_script. Viewport/Device: set_viewport_size, get_viewport_size, set_device_preset, reset_viewport. Other: get_accessibility, get_security, get_manifest, get_service_workers, get_memory, get_all.',
+              },
+              clear: {
+                type: 'boolean',
+                description: 'Clear logs after retrieving them. Default: false',
+              },
+              limit: {
+                type: 'number',
+                description: 'Maximum number of logs/requests to return. Default: 50',
+              },
+              selector: {
+                type: 'string',
+                description: 'CSS selector for element-specific actions (get_css_property, set_css_property, get_layout, get_computed_styles, get_event_listeners)',
+              },
+              property: {
+                type: 'string',
+                description: 'CSS property name (for get_css_property, set_css_property)',
+              },
+              value: {
+                type: 'string',
+                description: 'Value to set (for set_css_property, set_localStorage, set_sessionStorage, set_cookie)',
+              },
+              key: {
+                type: 'string',
+                description: 'Key/name for storage/cookie operations (set_localStorage, remove_localStorage, set_sessionStorage, set_cookie, remove_cookie)',
+              },
+              width: {
+                type: 'number',
+                description: 'Viewport width in pixels (for set_viewport_size)',
+              },
+              height: {
+                type: 'number',
+                description: 'Viewport height in pixels (for set_viewport_size)',
+              },
+              mobile: {
+                type: 'boolean',
+                description: 'Enable mobile mode (for set_viewport_size)',
+              },
+              deviceScaleFactor: {
+                type: 'number',
+                description: 'Device pixel ratio (for set_viewport_size). Default: 1',
+              },
+              preset: {
+                type: 'string',
+                description: 'Device preset name (for set_device_preset). Available: iphone-se, iphone-12, iphone-14-pro-max, ipad, ipad-pro, galaxy-s20, galaxy-s21, pixel-5, desktop, desktop-hd, tablet',
+              },
+              index: {
+                type: 'number',
+                description: 'Script index (for read_script)',
+              },
+              src: {
+                type: 'string',
+                description: 'Script source URL (for read_script)',
+              },
+              domain: {
+                type: 'string',
+                description: 'Cookie domain (for set_cookie)',
+              },
+              path: {
+                type: 'string',
+                description: 'Cookie path (for set_cookie)',
+              },
+              secure: {
+                type: 'boolean',
+                description: 'Cookie secure flag (for set_cookie)',
+              },
+              httpOnly: {
+                type: 'boolean',
+                description: 'Cookie httpOnly flag (for set_cookie)',
+              },
+              expiry: {
+                type: 'string',
+                description: 'Cookie expiry date (ISO string) (for set_cookie)',
+              },
+              important: {
+                type: 'boolean',
+                description: 'Set CSS property as important (for set_css_property)',
+              },
+            },
+            required: ['browserId', 'action'],
+          },
+        },
+        {
+          name: 'set_window_size',
+          description: 'Resize browser window. Use browserId to identify the browser instance.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              browserId: {
+                type: 'string',
+                description: 'Browser ID to identify the browser instance. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
+              },
+              width: {
+                type: 'number',
+                description: 'Window width in pixels',
+              },
+              height: {
+                type: 'number',
+                description: 'Window height in pixels',
+              },
+            },
+            required: ['browserId', 'width', 'height'],
+          },
+        },
+        {
+          name: 'set_window_position',
+          description: 'Move browser window to a specific position on screen. Use browserId to identify the browser instance. Supports monitor presets or exact coordinates.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              browserId: {
+                type: 'string',
+                description: 'Browser ID to identify the browser instance. Use this for managing multiple browser sessions (e.g., "user1", "user2" for testing chat apps).',
+              },
+              x: {
+                type: 'number',
+                description: 'Window X position in pixels. Can be used with monitor option',
+              },
+              y: {
+                type: 'number',
+                description: 'Window Y position in pixels. Can be used with monitor option',
+              },
+              monitor: {
+                type: 'string',
+                enum: ['primary', 'secondary', 'auto'],
+                description: 'Monitor preset. primary=0,0; secondary=1920,0; auto=detect. Can be combined with x/y for fine-tuning',
+              },
+            },
+            required: ['browserId'],
           },
         },
       ];
@@ -419,6 +536,10 @@ class MCPSeleniumServer {
             result = await openBrowserTool(args, this.browserSessions, this.chromeDriverManager, this.logger, this.setBadge.bind(this));
             break;
 
+          case 'list_browsers':
+            result = await this.listBrowsers();
+            break;
+
           case 'navigate_to':
             result = await this.handleNavigateTo(args);
             break;
@@ -443,8 +564,12 @@ class MCPSeleniumServer {
             result = await closeBrowserTool(args, this.getSession.bind(this), this.browserSessions, this.logger, this.getSessionByBrowserId.bind(this));
             break;
 
-          case 'find_by_description':
-            result = await this.handleFindByDescription(args);
+          case 'set_window_size':
+            result = await this.setWindowSize(args);
+            break;
+
+          case 'set_window_position':
+            result = await this.setWindowPosition(args);
             break;
 
           case 'get_page_elements':
@@ -453,6 +578,10 @@ class MCPSeleniumServer {
 
           case 'get_page_code':
             result = await this.handleGetPageCode(args);
+            break;
+
+          case 'dev_tools':
+            result = await this.handleDevTools(args);
             break;
 
           default:
@@ -555,7 +684,9 @@ class MCPSeleniumServer {
 
         // Also write detailed error to a separate error log file
         try {
-          const errorLogDir = path.join(process.cwd(), 'logs');
+          // Use centralized project directory detection
+          const { getLogsDir } = await import('./utils/projectDir.js');
+          const errorLogDir = getLogsDir();
           if (!fs.existsSync(errorLogDir)) {
             fs.mkdirSync(errorLogDir, { recursive: true });
           }
@@ -1312,18 +1443,16 @@ class MCPSeleniumServer {
 
 
   /**
-   * Helper to resolve session from either sessionId or browserId
-   * This ensures all tools can work with both identifiers consistently
+   * Helper to resolve session from browserId
+   * Cursor manages browser instances using browserId - this is the standard way to identify browsers
+   * browserId is required for all tools that operate on a browser instance
    */
-  private async resolveSession(args: { sessionId?: string; browserId?: string }): Promise<BrowserSession | null> {
-    if (args.browserId) {
-      const session = this.getSessionByBrowserId(args.browserId);
-      if (session) return session;
+  private async resolveSession(args: { browserId: string }): Promise<BrowserSession | null> {
+    if (!args.browserId) {
+      return null;
     }
-    if (args.sessionId) {
-      return await this.getSession(args.sessionId);
-    }
-    return null;
+    const session = this.getSessionByBrowserId(args.browserId);
+    return session || null;
   }
 
   // Wrapper methods to support both sessionId and browserId consistently
@@ -1332,7 +1461,7 @@ class MCPSeleniumServer {
     if (!session) {
       return { success: false, message: 'Browser not found' };
     }
-    return await navigateToTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger, this.injectBadge.bind(this));
+    return await navigateToTool(args, session, this.logger, this.injectBadge.bind(this));
   }
 
   private async handleClickElement(args: any) {
@@ -1340,7 +1469,7 @@ class MCPSeleniumServer {
     if (!session) {
       return { success: false, message: 'Browser not found' };
     }
-    return await clickElementTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.findElementBySelector.bind(this), this.logger);
+    return await clickElementTool(args, session, this.findElementBySelector.bind(this), this.logger);
   }
 
   private async handleTypeText(args: any) {
@@ -1348,7 +1477,7 @@ class MCPSeleniumServer {
     if (!session) {
       return { success: false, message: 'Browser not found' };
     }
-    return await typeTextTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.findElementBySelector.bind(this), this.logger);
+    return await typeTextTool(args, session, this.findElementBySelector.bind(this), this.logger);
   }
 
   private async handleTakeScreenshot(args: any) {
@@ -1356,7 +1485,7 @@ class MCPSeleniumServer {
     if (!session) {
       return { success: false, message: 'Browser not found' };
     }
-    return await takeScreenshotTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+    return await takeScreenshotTool(args, session, this.logger);
   }
 
   private async handleExecuteScript(args: any) {
@@ -1364,29 +1493,9 @@ class MCPSeleniumServer {
     if (!session) {
       return { success: false, message: 'Browser not found' };
     }
-    return await executeScriptTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+    return await executeScriptTool(args, session, this.logger);
   }
 
-  private async handleGetPageDebugInfo(args: any) {
-    const session = await this.resolveSession(args);
-    if (!session) {
-      return { success: false, message: 'Browser not found' };
-    }
-    return await getPageDebugInfoTool(
-      { ...args, sessionId: session.sessionId },
-      this.getSession.bind(this),
-      (args: any) => getInteractiveElementsTool(args, this.getSession.bind(this), this.logger),
-      this.logger
-    );
-  }
-
-  private async handleGetInteractiveElements(args: any) {
-    const session = await this.resolveSession(args);
-    if (!session) {
-      return { success: false, message: 'Browser not found' };
-    }
-    return await getInteractiveElementsTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
-  }
 
 
   private async handleListElements(args: any) {
@@ -1403,14 +1512,6 @@ class MCPSeleniumServer {
       return { success: false, message: 'Browser not found' };
     }
     return await this.checkElementExists({ ...args, sessionId: session.sessionId });
-  }
-
-  private async handleFindByDescription(args: any) {
-    const session = await this.resolveSession(args);
-    if (!session) {
-      return { success: false, message: 'Browser not found' };
-    }
-    return await this.findByDescription({ ...args, sessionId: session.sessionId });
   }
 
   private async handleFillForm(args: any) {
@@ -1450,7 +1551,7 @@ class MCPSeleniumServer {
     if (!session) {
       return { success: false, message: 'Browser not found' };
     }
-    return await getPageElementsTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+    return await getPageElementsTool(args, session, this.logger);
   }
 
   private async handleGetPageCode(args: any) {
@@ -1458,15 +1559,26 @@ class MCPSeleniumServer {
     if (!session) {
       return { success: false, message: 'Browser not found' };
     }
-    return await getPageCodeTool({ ...args, sessionId: session.sessionId }, this.getSession.bind(this), this.logger);
+    return await getPageCodeTool(args, session, this.logger);
+  }
+
+  private async handleDevTools(args: any) {
+    const session = await this.resolveSession(args);
+    if (!session) {
+      return { success: false, message: 'Browser not found' };
+    }
+    return await devToolsTool(args, session, this.logger);
   }
 
   private async listBrowsers() {
-    const browsers = Array.from(this.browserSessions.values()).map(s => ({
-      id: s.browserId,
-      session: s.sessionId,
-      active: s.isActive
-    }));
+    const browsers = Array.from(this.browserSessions.values())
+      .filter(s => s.isActive)
+      .map(s => ({
+        browserId: s.browserId,
+        active: s.isActive,
+        createdAt: s.createdAt.toISOString(),
+        lastUsed: s.lastUsed.toISOString()
+      }));
     return { success: true, data: { browsers, count: browsers.length } };
   }
 

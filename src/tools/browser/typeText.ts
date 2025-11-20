@@ -8,12 +8,11 @@ interface FindElementBySelectorFunction {
 
 export async function typeTextTool(
     args: any,
-    getSession: (sessionId: string) => Promise<BrowserSession | null>,
+    session: BrowserSession | null,
     findElementBySelector: FindElementBySelectorFunction,
     logger: Logger
 ) {
-    const { sessionId, selector, text, by = 'css' } = args;
-    const session = await getSession(sessionId);
+    const { selector, text, by = 'css' } = args;
     if (!session) return { success: false, message: 'Session not found' };
     try {
         await session.driver.executeScript(`

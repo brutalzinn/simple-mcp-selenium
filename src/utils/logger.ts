@@ -1,12 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { getLogsDir } from './projectDir.js';
 
 export class Logger {
     private logDir: string;
     private logFile: string;
 
     constructor() {
-        this.logDir = path.join(process.cwd(), 'logs');
+        // Use centralized project directory detection
+        // This ensures logs are saved in the user's project directory where Cursor is running
+        this.logDir = getLogsDir();
         this.logFile = path.join(this.logDir, `mcp-server-${new Date().toISOString().split('T')[0]}.log`);
 
         if (!fs.existsSync(this.logDir)) {
